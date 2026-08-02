@@ -1,4 +1,4 @@
-# Tutorial do Aluno — Autograder IDP-TD
+# Tutorial do Aluno — Autograder IDP (curso de Agentes de IA)
 
 Este tutorial leva você do **zero** até **submeter o primeiro exercício** e receber uma nota oficial.
 
@@ -25,9 +25,9 @@ Antes de começar qualquer exercício, garanta que você tem todas as ferramenta
 |---|---|---|---|
 | **Python** | 3.9+ | Roda a CLI `autograde` | [Parte 1.1](#11-python-39-ou-superior) |
 | **Git** | qualquer recente | Versionar código, fazer commits e push | [Parte 1.2](#12-git) |
-| **GitHub CLI (`gh`)** | qualquer recente | Criar repos, abrir PRs, fazer merge pela linha de comando (exercícios 1.2+) | [Parte 1.3](#13-github-cli-gh) |
+| **GitHub CLI (`gh`)** | qualquer recente | Criar repos, abrir PRs, fazer merge pela linha de comando (exercícios ia-1.2+) | [Parte 1.3](#13-github-cli-gh) |
 | **CLI `autograde`** | última do repo | Validar e submeter exercícios | [Parte 1.4](#14-instalar-o-cli-autograde) |
-| **Agente de codificação** | qualquer | Automatizar comandos (exercícios 1.3 e 1.4) | instale antes do 1.3 |
+| **Agente de codificação** | qualquer | Automatizar comandos (exercícios ia-1.3 e ia-1.4) | instale antes do ia-1.3 |
 
 **Agentes de codificação suportados** (escolha um — qualquer um que rode no seu terminal serve):
 - **Claude Code** (Anthropic) — `claude` na linha de comando
@@ -110,7 +110,7 @@ echo "texto" >> arquivo.md
 - [ ] `gh auth status` mostra você logado no `github.com`
 - [ ] `autograde --version` retorna uma versão
 - [ ] `autograde whoami` mostra seu email institucional e turma corretos
-- [ ] (a partir do 1.3) um agente de codificação instalado e acessível no terminal
+- [ ] (a partir do ia-1.3) um agente de codificação instalado e acessível no terminal
 
 Se algum item falhar, vá para a Parte 1 correspondente e configure antes de tentar qualquer exercício.
 
@@ -159,7 +159,7 @@ git config --global user.email "seu.email@aluno.idp.edu.br"
 
 ### 1.3 GitHub CLI (`gh`)
 
-Você vai precisar de uma conta no [github.com](https://github.com/), se ainda não tiver, crie uma. A partir do **Exercício 1.2** o autograder coleta evidência do `gh`. Instale agora pra não travar depois:
+Você vai precisar de uma conta no [github.com](https://github.com/), se ainda não tiver, crie uma. A partir do **Exercício ia-1.2** o autograder coleta evidência do `gh`. Instale agora pra não travar depois:
 
 - **macOS**: `brew install gh`
 - **Windows (winget)**: `winget install --id GitHub.cli`
@@ -231,19 +231,19 @@ Deve mostrar:
 ```
 email: ana.silva@aluno.idp.edu.br
 nome:  Ana Silva
-turma: TD-2026-01
+turma: IA-2026-02
 ```
 
 Se aparecer **`erro: email não está no roster`** → fale com o professor. Você não está na planilha da turma; o backend bloqueia qualquer submissão.
 
 ---
 
-## Parte 2 — Fazendo o Exercício 1.1 (Seu Primeiro Repositório)
+## Parte 2 — Fazendo o Exercício ia-1.1 (Seu Primeiro Repositório)
 Você vai aprender a criar um repositorio no github, fazer add, commit e push dos arquivos. O exercise 1.1 exige que você crie um repositorio publico no github com pelo menos 2 commits.
 
 ### O que o exercício pede
 
-Veja o YAML do exercício em [`idp_governodigital/exercicios/1.1.yaml`](https://github.com/alexlopespereira/idp_governodigital/blob/main/exercicios/1.1.yaml). Resumo:
+Veja o YAML do exercício em [`idp_agentes_ia/exercicios/ia-1.1.yaml`](https://github.com/alexlopespereira/idp_agentes_ia/blob/main/exercicios/ia-1.1.yaml). Resumo:
 
 | Critério | Peso | O que precisa |
 |---|---:|---|
@@ -257,7 +257,7 @@ Veja o YAML do exercício em [`idp_governodigital/exercicios/1.1.yaml`](https://
 | `reflexao_1` | 10 | resposta subjetiva avaliada por LLM (ver abaixo) |
 | **Total** | **100** | |
 
-> **Novidade — pergunta subjetiva.** A partir do exercício 1.1, antes do boletim a CLI faz uma pergunta de reflexão pedindo que você explique com suas palavras o que entendeu dos comandos. A resposta é avaliada por uma LLM (Gemini) e a nota vai pro critério `reflexao_1`. Respostas em branco são rejeitadas (a CLI fica em loop até você responder).
+> **Novidade — pergunta subjetiva.** A partir do exercício ia-1.1, antes do boletim a CLI faz uma pergunta de reflexão pedindo que você explique com suas palavras o que entendeu dos comandos. A resposta é avaliada por uma LLM (Gemini) e a nota vai pro critério `reflexao_1`. Respostas em branco são rejeitadas (a CLI fica em loop até você responder).
 
 ### Passo a passo
 
@@ -281,7 +281,7 @@ Crie o arquivo README.md e adicione-o ao repositorio:
 ```bash
 echo "# Meu Primeiro Repositorio" > README.md
 echo "" >> README.md
-echo "Repo do exercicio 1.1 da disciplina Transformacao Digital." >> README.md
+echo "Repo do exercicio ia-1.1 da disciplina Agentes de IA." >> README.md
 git add README.md
 git commit -m "feat: README inicial"
 ```
@@ -291,7 +291,7 @@ git commit -m "feat: README inicial"
 ```bash
 echo "" >> README.md
 echo "## Sobre" >> README.md
-echo "Estudante da TD-2026-01." >> README.md
+echo "Estudante da IA-2026-02." >> README.md
 git commit -am "docs: secao Sobre"
 ```
 
@@ -306,7 +306,7 @@ git push origin main
 Dentro do diretório do repo e fora do terminal do agente:
 
 ```bash
-autograde validar 1.1
+autograde validar ia-1.1
 ```
 
 A CLI, na ordem:
@@ -370,19 +370,19 @@ O símbolo `❌` traz uma **mensagem específica** explicando o que faltou. Use 
 - Responda `s` → envia resposta para a planilha do professor. 
 - Responda `n` → não escreve. Você pode iterar e validar de novo.
 
-> **Dica**: rode `autograde validar 1.1` quantas vezes quiser sem submeter. Só quando o boletim estiver bom, dê `s`. Se o `validar` aparecer "[OK]" em tudo mas você não quer submeter ainda, dê `n`.
+> **Dica**: rode `autograde validar ia-1.1` quantas vezes quiser sem submeter. Só quando o boletim estiver bom, dê `s`. Se o `validar` aparecer "[OK]" em tudo mas você não quer submeter ainda, dê `n`.
 
 ### Atalho para scripts
 
 Se quiser pular o prompt:
 
 ```bash
-autograde validar 1.1 --auto-submit
+autograde validar ia-1.1 --auto-submit
 ```
 
 ---
 
-## Parte 3 — Fazendo o Exercício 1.2 (GitHub CLI)
+## Parte 3 — Fazendo o Exercício ia-1.2 (GitHub CLI)
 Neste exercicio você vai usar a CLI do github (`gh`) para interagir com o repositório. Você também vai aprender a criar uma branch e um PR (Pull Request).
 
 Pré-requisito: `gh` instalado e autenticado (Parte 1.3).
@@ -412,7 +412,7 @@ cd exercicio-12
 Agora faça o commit inicial:
 ```bash
 # commit inicial em main
-echo "# Exercicio 1.2" > README.md
+echo "# Exercicio ia-1.2" > README.md
 git add README.md
 git commit -m "feat: README inicial"
 git push origin main
@@ -425,7 +425,7 @@ git checkout -b feat/algo
 echo "linha nova" >> README.md
 git commit -am "feat: adiciona linha"
 git push -u origin feat/algo
-gh pr create --title "feat: adiciona uma linha ao README" --body "Trabalho do exercicio 1.2"
+gh pr create --title "feat: adiciona uma linha ao README" --body "Trabalho do exercicio ia-1.2"
 
 Agora faça um merge do PR:
 ```bash
@@ -436,14 +436,14 @@ gh pr merge --squash --delete-branch
 Dentro do diretório do repo e fora do terminal do agente:
 
 ```bash
-autograde validar 1.2
+autograde validar ia-1.2
 ```
 
 > **Importante**: o título do PR deve ser **descritivo**. Títulos como "WIP", "test", "fix", "asdf" falham no critério `pr_titulo_descritivo`.
 
 ---
 
-## Parte 4 — Fazendo o Exercício 1.3 (Agente cria repositório e clona)
+## Parte 4 — Fazendo o Exercício ia-1.3 (Agente cria repositório e clona)
 
 Neste exercício você vai usar um **agente de codificação** (Claude Code, Cursor, Codex CLI, GitHub Copilot CLI etc) para automatizar a criação de um repositório e o clone local com `gh`. A ideia não é digitar os comandos — é **instruir o agente** e entender o que ele faz por você.
 
@@ -492,7 +492,7 @@ echo "# Meu Segundo Repositorio" > README.md
 Dentro da pasta `meu-segundo-repo` e fora do terminal do agente (claude code, codex, etc):
 
 ```bash
-autograde validar 1.3
+autograde validar ia-1.3
 ```
 
 A CLI vai fazer a pergunta de reflexão (algo como *"Como você instruiu o agente para criar o repositório e cloná-lo? O que cada comando do gh executado faz?"*) e gradear sua resposta via Gemini, somando ao boletim.
@@ -501,11 +501,11 @@ A CLI vai fazer a pergunta de reflexão (algo como *"Como você instruiu o agent
 
 ---
 
-## Parte 5 — Fazendo o Exercício 1.4 (Agente cria arquivo, abre PR e merge)
+## Parte 5 — Fazendo o Exercício ia-1.4 (Agente cria arquivo, abre PR e merge)
 
 Agora você vai pedir para o agente automatizar o ciclo completo de uma contribuição — criar arquivo, abrir PR e fazer merge.
 
-Pré-requisito: igual ao 1.3 (`gh` autenticado + agente disponível).
+Pré-requisito: igual ao ia-1.3 (`gh` autenticado + agente disponível).
 
 ### Critérios
 
@@ -573,7 +573,7 @@ Confira no GitHub que o PR aparece como **Merged** e que a `main` tem 2 commits.
 Dentro da pasta `meu-terceiro-repo` e fora do terminal do agente:
 
 ```bash
-autograde validar 1.4
+autograde validar ia-1.4
 ```
 
 A pergunta de reflexão pede que você explique o papel do `gh pr create` e do `gh pr merge` com suas palavras. Mostre que entendeu — não copie do output do terminal.
@@ -607,7 +607,7 @@ autograde validar
 A CLI tenta inferir o exercício pelo nome do repo, mas não chuta. Especifique:
 
 ```bash
-autograde validar 1.1
+autograde validar ia-1.1
 ```
 
 ### "403 not_in_roster"
@@ -642,7 +642,7 @@ Se você submeter depois do `prazo.recomendado_ate`, a linha é gravada com `lat
 
 Backend rejeita com mensagem pedagógica:
 ```
-exercicio 1.1 abre em 2026-03-10T08:00:00-03:00. Volte depois.
+exercicio ia-1.1 abre em 2026-03-10T08:00:00-03:00. Volte depois.
 ```
 
 ### "Deseja submeter? (s/n)" travou
@@ -666,11 +666,11 @@ Se rodou em script sem TTY, o prompt não funciona. Use `--auto-submit`.
 **P: Posso usar email pessoal?**
 Não. Backend cruza com o roster da turma, que tem email institucional.
 
-**P: Posso fazer o exercício 1.1 sem `gh`?**
-Sim, ex 1.1 só usa GitHub API; `gh` é só pra ex 1.2+.
+**P: Posso fazer o exercício ia-1.1 sem `gh`?**
+Sim, ex ia-1.1 só usa GitHub API; `gh` é só pra ex ia-1.2+.
 
 **P: Windows nativo funciona?**
-Sim para 1.1 e 1.2. Para o futuro **exercício 3** (evidência IA), use **WSL2** — Claude Code/Codex CLI têm comportamento divergente em Windows nativo.
+Sim para ia-1.1 e ia-1.2. Para o futuro **exercício 3** (evidência IA), use **WSL2** — Claude Code/Codex CLI têm comportamento divergente em Windows nativo.
 
 **P: Posso ver minhas notas em algum lugar?**
 `autograde notas`. Lê direto da planilha do professor.
@@ -687,13 +687,13 @@ Sim para 1.1 e 1.2. Para o futuro **exercício 3** (evidência IA), use **WSL2**
 
 | Exercício | Estado | O que pede |
 |---|---|---|
-| 1.1 | ✅ disponível | Repo público + README + 2 commits |
-| 1.2 | ✅ disponível | PR + uso de `gh` CLI |
-| 1.3 | ✅ disponível | Agente cria repo + clone com `gh` |
-| 1.4 | ✅ disponível | Agente cria arquivo + PR + merge com `gh` |
+| ia-1.1 | ✅ disponível | Repo público + README + 2 commits |
+| ia-1.2 | ✅ disponível | PR + uso de `gh` CLI |
+| ia-1.3 | ✅ disponível | Agente cria repo + clone com `gh` |
+| ia-1.4 | ✅ disponível | Agente cria arquivo + PR + merge com `gh` |
 | 3 | em elaboração | Evidência ampliada de uso de IA |
 
-Critérios e prazos de cada um vivem no YAML correspondente em [`idp_governodigital/exercicios/`](https://github.com/alexlopespereira/idp_governodigital/tree/main/exercicios).
+Critérios e prazos de cada um vivem no YAML correspondente em [`idp_agentes_ia/exercicios/`](https://github.com/alexlopespereira/idp_agentes_ia/tree/main/exercicios).
 
 ---
 
