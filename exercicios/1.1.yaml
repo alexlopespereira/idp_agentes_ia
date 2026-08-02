@@ -1,0 +1,48 @@
+exercicio: "1.1"
+titulo: "Seu Primeiro Repositorio"
+turmas:
+  - TD-2026-01
+disponivel_a_partir_de: 2026-05-01T00:00:00-03:00
+prazo:
+  recomendado_ate: 2026-05-31T23:59:59-03:00
+criterios:
+  - id: repo_existe
+    peso: 20
+    check: github.repo.exists
+  - id: pelo_menos_1_commit
+    peso: 20
+    check: github.commits.count_at_least
+    args:
+      n: 1
+  - id: repo_publico
+    peso: 10
+    check: github.repo.public
+  - id: readme_existe
+    peso: 10
+    check: github.repo.has_file
+    args:
+      path: README.md
+  - id: readme_nao_vazio
+    peso: 10
+    check: github.repo.file_not_empty
+    args:
+      path: README.md
+  - id: dois_commits
+    peso: 10
+    check: github.commits.count_at_least
+    args:
+      n: 2
+  - id: ultimo_commit_recente
+    peso: 10
+    check: github.commits.last_within
+    args:
+      duration: 24h
+perguntas:
+  - texto: "O que você entendeu dos comandos que acabou de executar?"
+    criterios_avaliacao: |
+      Resposta deve demonstrar compreensão básica de pelo menos 2 dos comandos
+      principais (git init, git add, git commit, git push) e explicar com palavras
+      próprias o que cada comando citado faz. Aceitar respostas em linguagem
+      informal; rejeitar respostas evasivas (ex: "fiz o exercício") ou copy-paste
+      do enunciado.
+    peso: 10

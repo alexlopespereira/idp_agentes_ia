@@ -1,0 +1,48 @@
+exercicio: "1.4"
+titulo: "Agente cria arquivo, abre PR e merge"
+turmas:
+  - TD-2026-01
+disponivel_a_partir_de: 2026-05-01T00:00:00-03:00
+prazo:
+  recomendado_ate: 2026-05-31T23:59:59-03:00
+# Comandos shell que o CLI executa e que o backend valida (string equality).
+# Placeholder {owner_repo} é substituído pelo CLI a partir do repo_url.
+comandos_shell:
+  - ["gh", "--version"]
+  - ["gh", "auth", "status"]
+  - ["gh", "repo", "view", "{owner_repo}", "--json", "visibility,name,isPrivate"]
+criterios:
+  - id: repo_existe
+    peso: 10
+    check: github.repo.exists
+  - id: repo_publico
+    peso: 10
+    check: github.repo.public
+  - id: pr_mergeado
+    peso: 25
+    check: github.pr.count
+    args:
+      state: merged
+      min: 1
+  - id: pelo_menos_2_commits
+    peso: 20
+    check: github.commits.count_at_least
+    args:
+      n: 2
+  - id: gh_authenticated
+    peso: 10
+    check: evidence.shell.gh_auth_ok
+  - id: gh_repo_view_ok
+    peso: 15
+    check: evidence.shell.gh_repo_view_ok
+perguntas:
+  - texto: "Como você instruiu o agente para criar o arquivo, abrir o PR e fazer o merge? Explique o papel de cada comando do gh executado."
+    criterios_avaliacao: |
+      Resposta deve (1) mostrar o prompt/instrução dada ao agente (pode ser
+      copy-paste do prompt usado, NÃO precisa reescrever em palavras próprias)
+      e (2) explicar COM SUAS PRÓPRIAS PALAVRAS o que pelo menos 2 comandos do
+      gh CLI executados pelo agente fazem (ex: gh pr create abre PR a partir
+      da branch atual, gh pr merge faz merge na main e fecha o PR). Rejeitar
+      respostas evasivas ("o agente fez tudo automático") na parte (2), ou
+      copy-paste do output dos comandos como explicação.
+    peso: 10

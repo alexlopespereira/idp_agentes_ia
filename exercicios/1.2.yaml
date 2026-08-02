@@ -1,0 +1,44 @@
+exercicio: "1.2"
+titulo: "GitHub CLI"
+turmas:
+  - TD-2026-01
+disponivel_a_partir_de: 2026-05-01T00:00:00-03:00
+prazo:
+  recomendado_ate: 2026-05-31T23:59:59-03:00
+# Comandos shell que o CLI executa e que o backend valida (string equality).
+# Placeholder {owner_repo} é substituído pelo CLI a partir do repo_url.
+comandos_shell:
+  - ["gh", "--version"]
+  - ["gh", "auth", "status"]
+  - ["gh", "repo", "view", "{owner_repo}", "--json", "visibility,name,isPrivate"]
+criterios:
+  - id: repo_publico
+    peso: 15
+    check: github.repo.public
+  - id: pelo_menos_1_pr
+    peso: 20
+    check: github.pr.count
+    args:
+      state: all
+      min: 1
+  - id: pr_titulo_descritivo
+    peso: 15
+    check: github.pr.has_descriptive_title
+  - id: gh_authenticated
+    peso: 15
+    check: evidence.shell.gh_auth_ok
+  - id: gh_version_capturado
+    peso: 10
+    check: evidence.shell.gh_version_present
+  - id: gh_repo_view_ok
+    peso: 15
+    check: evidence.shell.gh_repo_view_ok
+perguntas:
+  - texto: "O que você entendeu dos comandos que acabou de executar?"
+    criterios_avaliacao: |
+      Resposta deve demonstrar compreensão de pelo menos 2 dos comandos do gh CLI
+      usados no exercício (gh auth login, gh repo view, gh pr create, etc.) e
+      explicar com palavras próprias o que cada comando citado faz. Aceitar
+      respostas em linguagem informal; rejeitar respostas evasivas ou copy-paste
+      do enunciado.
+    peso: 10
