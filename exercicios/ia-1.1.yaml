@@ -5,12 +5,17 @@ turmas:
 disponivel_a_partir_de: 2026-05-01T00:00:00-03:00
 prazo:
   recomendado_ate: 2026-05-31T23:59:59-03:00
+# Balanço da nota: 70 pontos nos critérios objetivos + 30 na pergunta de
+# reflexão (soma 100 — o boletim usa a soma crua dos pesos, não normaliza).
+# Quem entrega o repo certo mas não explica o que fez fica com 7,0; a
+# compreensão vale mais do que executar os comandos no piloto automático.
+# Ao editar pesos aqui, refaça a conta: criterios + perguntas TEM que dar 100.
 criterios:
   - id: repo_existe
-    peso: 20
+    peso: 15
     check: github.repo.exists
   - id: pelo_menos_1_commit
-    peso: 20
+    peso: 15
     check: github.commits.count_at_least
     args:
       n: 1
@@ -18,22 +23,22 @@ criterios:
     peso: 10
     check: github.repo.public
   - id: readme_existe
-    peso: 10
+    peso: 8
     check: github.repo.has_file
     args:
       path: README.md
   - id: readme_nao_vazio
-    peso: 10
+    peso: 8
     check: github.repo.file_not_empty
     args:
       path: README.md
   - id: dois_commits
-    peso: 10
+    peso: 7
     check: github.commits.count_at_least
     args:
       n: 2
   - id: ultimo_commit_recente
-    peso: 10
+    peso: 7
     check: github.commits.last_within
     args:
       duration: 24h
@@ -45,4 +50,4 @@ perguntas:
       próprias o que cada comando citado faz. Aceitar respostas em linguagem
       informal; rejeitar respostas evasivas (ex: "fiz o exercício") ou copy-paste
       do enunciado.
-    peso: 10
+    peso: 30
