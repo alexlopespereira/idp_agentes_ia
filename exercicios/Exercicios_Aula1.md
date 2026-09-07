@@ -79,8 +79,10 @@ gh pr merge --squash --delete-branch
 **Autograde** (validação e submissão):
 ```
 autograde --version
+autograde doctor
 autograde login
 autograde whoami
+autograde perfil
 autograde validar <id>
 autograde validar <id> --auto-submit
 autograde notas
@@ -103,6 +105,32 @@ echo "texto" >> arquivo.md
 
 ### Checklist antes de começar
 
+Depois de instalar a CLI (Parte 1.4), **um comando checa tudo isso de uma vez**:
+
+```bash
+autograde doctor
+```
+
+Ele verifica Python, git, identidade do git, `gh`, `gh auth`, sua sessão, seu
+email/turma no roster e — se você estiver dentro de um repo — se ele é seu e se
+está público. Cada item que falha vem com o comando exato que conserta:
+
+```
+Diagnóstico do ambiente:
+
+  [OK] Python 3.9+                3.11.9
+  [OK] git instalado              git version 2.47.1
+  [X]  gh (GitHub CLI) instalado  gh não encontrado no PATH
+       -> Windows: winget install --id GitHub.cli
+       -> macOS: brew install gh   |   Linux: https://cli.github.com
+       -> Sem `gh` você perde os critérios `gh_*` dos exercícios 1.2 em diante (até 40 pontos).
+  [OK] sessão autograde           token com 3 dia(s)
+  [OK] email no roster            ana.silva@aluno.idp.edu.br
+  [OK] turma(s)                   IA-2026-01
+```
+
+Equivalente manual, item por item:
+
 - [ ] `python --version` (ou `python3 --version`) retorna 3.9+
 - [ ] `git --version` retorna uma versão
 - [ ] `git config --global user.name` e `user.email` configurados
@@ -113,6 +141,11 @@ echo "texto" >> arquivo.md
 - [ ] (a partir do ia-1.3) um agente de codificação instalado e acessível no terminal
 
 Se algum item falhar, vá para a Parte 1 correspondente e configure antes de tentar qualquer exercício.
+
+> **Travou numa mensagem de erro?** A
+> [FAQ do autograde](https://github.com/alexlopespereira/autograde-idp/blob/main/docs/FAQ.md)
+> é organizada pelo texto que aparece na sua tela — procure a mensagem com
+> Ctrl+F. A própria CLI já imprime o link da seção certa em cada erro.
 
 ---
 
@@ -231,7 +264,7 @@ Deve mostrar:
 ```
 email: ana.silva@aluno.idp.edu.br
 nome:  Ana Silva
-turma: IA-2026-02
+turma: IA-2026-01
 ```
 
 Se aparecer **`erro: email não está no roster`** → fale com o professor. Você não está na planilha da turma; o backend bloqueia qualquer submissão.
@@ -291,7 +324,7 @@ git commit -m "feat: README inicial"
 ```bash
 echo "" >> README.md
 echo "## Sobre" >> README.md
-echo "Estudante da IA-2026-02." >> README.md
+echo "Estudante da IA-2026-01." >> README.md
 git commit -am "docs: secao Sobre"
 ```
 
@@ -597,6 +630,26 @@ A pergunta de reflexão pede que você explique o papel do `gh pr create` e do `
 
 ## Parte 7 — Quando der errado
 
+> Primeiro reflexo: `autograde doctor`. Ele diagnostica o ambiente inteiro numa
+> passada. Se o erro veio do backend, a própria CLI já imprime o que fazer e o
+> link da seção correspondente na
+> [FAQ](https://github.com/alexlopespereira/autograde-idp/blob/main/docs/FAQ.md).
+
+### "403 turma_not_eligible"
+
+O exercício que você pediu é de outra turma.
+
+**`autograde login` não resolve** — sua turma vem da planilha do roster, não do
+login Google. Duas causas:
+
+1. **Id errado.** Os dois cursos têm exercícios `1.x`. Agentes de IA usa prefixo
+   (`ia-1.3`); Transformação Digital não (`1.3`). São exercícios diferentes.
+2. **Turma errada no cadastro.** Confira com `autograde whoami` e peça ao
+   professor para corrigir a coluna `turma` da sua linha.
+
+Faz as duas disciplinas? Uma linha só resolve — a coluna `turma` aceita várias
+turmas separadas por `;` (ex.: `TD-2026-01;IA-2026-01`).
+
 ### "Could not detect exercise from CWD"
 
 ```bash
@@ -674,6 +727,11 @@ Sim para ia-1.1 e ia-1.2. Para o futuro **exercício 3** (evidência IA), use **
 
 **P: Posso ver minhas notas em algum lugar?**
 `autograde notas`. Lê direto da planilha do professor.
+
+**P: Errei meu username do GitHub no cadastro. Como corrijo?**
+Rode `autograde perfil` para ver o que está gravado. Se estiver vazio, o próprio
+comando preenche. Se já estiver preenchido, só o professor corrige — a planilha
+recusa sobrescrever, o que impede um aluno cravar o username de outro.
 
 **P: Onde fica meu token?**
 `~/.git-exercicios/token.json`. Em Unix, chmod 0600 (só você lê). Em Windows, ACL do user.
