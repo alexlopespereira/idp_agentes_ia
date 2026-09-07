@@ -1,0 +1,5 @@
+# Os CSVs de insumo dos exercicios sao gerados byte a byte por script
+# (ver exercicios/aula3/scripts/gen_dados_ia31.py). O csv.writer do Python grava
+# CRLF em qualquer sistema operacional; sem esta regra o git converteria o EOL no
+# checkout e o arquivo clonado deixaria de bater com o arquivo gerado.
+*.csv -text
