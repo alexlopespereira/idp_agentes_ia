@@ -27,10 +27,10 @@ Quatro exercícios resolvidos, submetidos e conferidos na planilha:
 
 | Exercício | Nota | Linha | col. E (turma) | col. T (curso) |
 |---|---|---|---|---|
-| `ia-1.1` | 99/100 | 305 | `IA-2026-02` | `ia` |
-| `ia-1.2` | 99/100 | 306 | `IA-2026-02` | `ia` |
-| `ia-1.3` | 100/100 | 307 | `IA-2026-02` | `ia` |
-| `ia-1.4` | 99/100 | 308 | `IA-2026-02` | `ia` |
+| `ia-1.1` | 99/100 | 305 | `IA-2026-01` | `ia` |
+| `ia-1.2` | 99/100 | 306 | `IA-2026-01` | `ia` |
+| `ia-1.3` | 100/100 | 307 | `IA-2026-01` | `ia` |
+| `ia-1.4` | 99/100 | 308 | `IA-2026-01` | `ia` |
 
 Repos de teste: `teste-ia-1-1` … `teste-ia-1-4` em github.com/alexlopespereira.
 

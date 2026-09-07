@@ -126,7 +126,7 @@ Diagnóstico do ambiente:
        -> Sem `gh` você perde os critérios `gh_*` dos exercícios 1.2 em diante (até 40 pontos).
   [OK] sessão autograde           token com 3 dia(s)
   [OK] email no roster            ana.silva@aluno.idp.edu.br
-  [OK] turma(s)                   IA-2026-02
+  [OK] turma(s)                   IA-2026-01
 ```
 
 Equivalente manual, item por item:
@@ -264,7 +264,7 @@ Deve mostrar:
 ```
 email: ana.silva@aluno.idp.edu.br
 nome:  Ana Silva
-turma: IA-2026-02
+turma: IA-2026-01
 ```
 
 Se aparecer **`erro: email não está no roster`** → fale com o professor. Você não está na planilha da turma; o backend bloqueia qualquer submissão.
@@ -324,7 +324,7 @@ git commit -m "feat: README inicial"
 ```bash
 echo "" >> README.md
 echo "## Sobre" >> README.md
-echo "Estudante da IA-2026-02." >> README.md
+echo "Estudante da IA-2026-01." >> README.md
 git commit -am "docs: secao Sobre"
 ```
 
@@ -648,7 +648,7 @@ login Google. Duas causas:
    professor para corrigir a coluna `turma` da sua linha.
 
 Faz as duas disciplinas? Uma linha só resolve — a coluna `turma` aceita várias
-turmas separadas por `;` (ex.: `TD-2026-01;IA-2026-02`).
+turmas separadas por `;` (ex.: `TD-2026-01;IA-2026-01`).
 
 ### "Could not detect exercise from CWD"
 
