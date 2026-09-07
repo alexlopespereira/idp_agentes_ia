@@ -123,7 +123,7 @@ Diagnóstico do ambiente:
   [X]  gh (GitHub CLI) instalado  gh não encontrado no PATH
        -> Windows: winget install --id GitHub.cli
        -> macOS: brew install gh   |   Linux: https://cli.github.com
-       -> Sem `gh` você perde os critérios `gh_*` dos exercícios 1.2 em diante (até 40 pontos).
+       -> Sem `gh` você perde os critérios `gh_*` dos exercícios 1.2 em diante (até 32 pontos).
   [OK] sessão autograde           token com 3 dia(s)
   [OK] email no roster            ana.silva@aluno.idp.edu.br
   [OK] turma(s)                   IA-2026-01
@@ -280,14 +280,14 @@ Veja o YAML do exercício em [`idp_agentes_ia/exercicios/ia-1.1.yaml`](https://g
 
 | Critério | Peso | O que precisa |
 |---|---:|---|
-| `repo_existe` | 20 | repo público existe no seu usuário |
+| `repo_existe` | 15 | repo público existe no seu usuário |
 | `repo_publico` | 10 | visibilidade = public |
-| `readme_existe` | 10 | arquivo `README.md` no root |
-| `readme_nao_vazio` | 10 | conteúdo não vazio |
-| `pelo_menos_1_commit` | 20 | ≥ 1 commit |
-| `dois_commits` | 10 | ≥ 2 commits |
-| `ultimo_commit_recente` | 10 | último commit nas últimas 24h |
-| `reflexao_1` | 10 | resposta subjetiva avaliada por LLM (ver abaixo) |
+| `readme_existe` | 8 | arquivo `README.md` no root |
+| `readme_nao_vazio` | 8 | conteúdo não vazio |
+| `pelo_menos_1_commit` | 15 | ≥ 1 commit |
+| `dois_commits` | 7 | ≥ 2 commits |
+| `ultimo_commit_recente` | 7 | último commit nas últimas 24h |
+| `reflexao_1` | 30 | resposta subjetiva avaliada por LLM (ver abaixo) |
 | **Total** | **100** | |
 
 > **Novidade — pergunta subjetiva.** A partir do exercício ia-1.1, antes do boletim a CLI faz uma pergunta de reflexão pedindo que você explique com suas palavras o que entendeu dos comandos. A resposta é avaliada por uma LLM (Gemini) e a nota vai pro critério `reflexao_1`. Respostas em branco são rejeitadas (a CLI fica em loop até você responder).
@@ -369,34 +369,40 @@ Boletim:
   ✅ 15/15  repositorio encontrado
   ✅ 15/15  1 commits (>= 1)
   ✅ 10/10  repositorio publico
-  ✅ 10/10  arquivo 'README.md' presente
-  ✅ 10/10  arquivo 'README.md' tem 122 bytes
-  ✅ 10/10  2 commits (>= 2)
-  ✅ 10/10  commit dentro de 24h
-  ✅ 10/10  nome 'meu-primeiro-repo' bate com 'meu-primeiro-repo'
-  ✅ 8/10
+  ✅ 8/8    arquivo 'README.md' presente
+  ✅ 8/8    arquivo 'README.md' tem 122 bytes
+  ✅ 7/7    2 commits (>= 2)
+  ✅ 7/7    commit dentro de 24h
+  ✅ 24/30
       Você citou git init, git add, git commit e git push corretamente,
       explicando que add prepara arquivos e commit registra mudanças.
-      Faltou explicar o papel do git push (envio pro remoto) — 2 pts
-      descontados.
+      Faltou explicar o papel do git push (envio pro remoto).
 
-  Total: 98/100
+  Total: 94/100
 
 Deseja submeter? (s/n)
 ```
 
-Saída com falhas:
+Saída de quem fez tudo certo mas não explicou o que fez:
 
 ```
   ✅ 15/15  repositorio encontrado
-  ❌ 0/10   esperado 2 commits, encontrou 1
-  ✅ 10/10  arquivo 'README.md' presente
-  ❌ 0/10   README.md tem 0 bytes
-  ...
-  Total: 60/100
+  ✅ 15/15  1 commits (>= 1)
+  ✅ 10/10  repositorio publico
+  ✅ 8/8    arquivo 'README.md' presente
+  ✅ 8/8    arquivo 'README.md' tem 122 bytes
+  ✅ 7/7    2 commits (>= 2)
+  ✅ 7/7    commit dentro de 24h
+  ❌ 0/30
+      Sua resposta foi muito curta e não atendeu aos critérios. Você não
+      explicou com suas palavras o que nenhum dos comandos faz.
+
+  Total: 70/100
 ```
 
 O símbolo `❌` traz uma **mensagem específica** explicando o que faltou. Use isso pra corrigir antes de submeter. O critério `reflexao_N` (último) traz o **feedback textual** do Gemini sobre sua resposta, justificando a nota.
+
+> **A pergunta de reflexão vale 30 dos 100 pontos.** Os critérios objetivos (repo existe, é público, tem commits, o `gh` rodou) somam 70. Isso é deliberado: executar os comandos — ou pedir para um agente executá-los — é a parte fácil, e sozinha ela te leva a 7,0. Os 3 pontos restantes saem de você explicar, **com suas próprias palavras**, o que cada comando faz. Resposta curta, evasiva ou copy-paste do enunciado tira zero nessa parte.
 
 **6. Submeter (ou não)**
 
@@ -424,16 +430,16 @@ Pré-requisito: `gh` instalado e autenticado (Parte 1.3).
 
 | Critério | Peso | O que precisa |
 |---|---:|---|
-| `repo_publico` | 15 | repo público |
-| `pelo_menos_1_pr` | 20 | ≥ 1 Pull Request (qualquer estado) |
-| `pr_titulo_descritivo` | 15 | título do PR não-trivial (não é "WIP", "test", "asdf") |
-| `gh_authenticated` | 15 | `gh auth status` retorna OK localmente |
-| `gh_version_capturado` | 10 | `gh --version` capturado |
-| `gh_repo_view_ok` | 15 | `gh repo view` no repo do exercício funciona |
-| `reflexao_1` | 10 | resposta subjetiva (LLM avalia) |
+| `repo_publico` | 12 | repo público |
+| `pelo_menos_1_pr` | 15 | ≥ 1 Pull Request (qualquer estado) |
+| `pr_titulo_descritivo` | 11 | título do PR não-trivial (não é "WIP", "test", "asdf") |
+| `gh_authenticated` | 12 | `gh auth status` retorna OK localmente |
+| `gh_version_capturado` | 8 | `gh --version` capturado |
+| `gh_repo_view_ok` | 12 | `gh repo view` no repo do exercício funciona |
+| `reflexao_1` | 30 | resposta subjetiva (LLM avalia) |
 | **Total** | **100** | |
 
-Os 3 critérios `gh_*` são **evidência local de shell** — a CLI roda `gh` na sua máquina e manda o resultado pro backend. Se `gh` não estiver instalado, esses 40 pontos viram zero.
+Os 3 critérios `gh_*` são **evidência local de shell** — a CLI roda `gh` na sua máquina e manda o resultado pro backend. Se `gh` não estiver instalado, esses 32 pontos viram zero.
 
 ### Passo a passo
 Numa pasta vazia, execute os comandos abaixo:
@@ -486,13 +492,13 @@ Pré-requisito: `gh` autenticado (Parte 1.3) e um agente de codificação dispon
 
 | Critério | Peso | O que precisa |
 |---|---:|---|
-| `repo_existe` | 20 | repo público existe no seu usuário |
-| `repo_publico` | 20 | visibilidade = public |
-| `pelo_menos_1_commit` | 10 | ≥ 1 commit |
-| `gh_authenticated` | 15 | `gh auth status` retorna OK localmente |
-| `gh_version_capturado` | 10 | `gh --version` capturado |
-| `gh_repo_view_ok` | 15 | `gh repo view` no repo funciona |
-| `reflexao_1` | 10 | resposta subjetiva (LLM avalia) |
+| `repo_existe` | 15 | repo público existe no seu usuário |
+| `repo_publico` | 15 | visibilidade = public |
+| `pelo_menos_1_commit` | 8 | ≥ 1 commit |
+| `gh_authenticated` | 12 | `gh auth status` retorna OK localmente |
+| `gh_version_capturado` | 8 | `gh --version` capturado |
+| `gh_repo_view_ok` | 12 | `gh repo view` no repo funciona |
+| `reflexao_1` | 30 | resposta subjetiva (LLM avalia) |
 | **Total** | **100** | |
 
 ### Passo a passo
@@ -544,13 +550,13 @@ Pré-requisito: igual ao ia-1.3 (`gh` autenticado + agente disponível).
 
 | Critério | Peso | O que precisa |
 |---|---:|---|
-| `repo_existe` | 10 | repo público existe no seu usuário |
-| `repo_publico` | 10 | visibilidade = public |
-| `pr_mergeado` | 25 | ≥ 1 PR em estado `merged` |
-| `pelo_menos_2_commits` | 20 | ≥ 2 commits na main (initial + PR mergeado) |
-| `gh_authenticated` | 10 | `gh auth status` retorna OK localmente |
-| `gh_repo_view_ok` | 15 | `gh repo view` no repo funciona |
-| `reflexao_1` | 10 | resposta subjetiva (LLM avalia) |
+| `repo_existe` | 8 | repo público existe no seu usuário |
+| `repo_publico` | 8 | visibilidade = public |
+| `pr_mergeado` | 19 | ≥ 1 PR em estado `merged` |
+| `pelo_menos_2_commits` | 15 | ≥ 2 commits na main (initial + PR mergeado) |
+| `gh_authenticated` | 8 | `gh auth status` retorna OK localmente |
+| `gh_repo_view_ok` | 12 | `gh repo view` no repo funciona |
+| `reflexao_1` | 30 | resposta subjetiva (LLM avalia) |
 | **Total** | **100** | |
 
 ### Passo a passo

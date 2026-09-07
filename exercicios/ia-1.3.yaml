@@ -11,26 +11,31 @@ comandos_shell:
   - ["gh", "--version"]
   - ["gh", "auth", "status"]
   - ["gh", "repo", "view", "{owner_repo}", "--json", "visibility,name,isPrivate"]
+# Balanço da nota: 70 pontos nos critérios objetivos + 30 na pergunta de
+# reflexão (soma 100 — o boletim usa a soma crua dos pesos, não normaliza).
+# Quem entrega o repo certo mas não explica o que fez fica com 7,0; a
+# compreensão vale mais do que executar os comandos no piloto automático.
+# Ao editar pesos aqui, refaça a conta: criterios + perguntas TEM que dar 100.
 criterios:
   - id: repo_existe
-    peso: 20
+    peso: 15
     check: github.repo.exists
   - id: repo_publico
-    peso: 20
+    peso: 15
     check: github.repo.public
   - id: pelo_menos_1_commit
-    peso: 10
+    peso: 8
     check: github.commits.count_at_least
     args:
       n: 1
   - id: gh_authenticated
-    peso: 15
+    peso: 12
     check: evidence.shell.gh_auth_ok
   - id: gh_version_capturado
-    peso: 10
+    peso: 8
     check: evidence.shell.gh_version_present
   - id: gh_repo_view_ok
-    peso: 15
+    peso: 12
     check: evidence.shell.gh_repo_view_ok
 perguntas:
   - texto: "Como você instruiu o agente para criar o repositório e cloná-lo? O que cada comando do gh executado faz?"
@@ -42,4 +47,4 @@ perguntas:
       gh repo clone baixa o repo localmente). Rejeitar respostas evasivas
       ("o agente fez tudo") na parte (2), ou copy-paste do output dos comandos
       como explicação.
-    peso: 10
+    peso: 30

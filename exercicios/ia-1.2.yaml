@@ -11,27 +11,32 @@ comandos_shell:
   - ["gh", "--version"]
   - ["gh", "auth", "status"]
   - ["gh", "repo", "view", "{owner_repo}", "--json", "visibility,name,isPrivate"]
+# Balanço da nota: 70 pontos nos critérios objetivos + 30 na pergunta de
+# reflexão (soma 100 — o boletim usa a soma crua dos pesos, não normaliza).
+# Quem entrega o repo certo mas não explica o que fez fica com 7,0; a
+# compreensão vale mais do que executar os comandos no piloto automático.
+# Ao editar pesos aqui, refaça a conta: criterios + perguntas TEM que dar 100.
 criterios:
   - id: repo_publico
-    peso: 15
+    peso: 12
     check: github.repo.public
   - id: pelo_menos_1_pr
-    peso: 20
+    peso: 15
     check: github.pr.count
     args:
       state: all
       min: 1
   - id: pr_titulo_descritivo
-    peso: 15
+    peso: 11
     check: github.pr.has_descriptive_title
   - id: gh_authenticated
-    peso: 15
+    peso: 12
     check: evidence.shell.gh_auth_ok
   - id: gh_version_capturado
-    peso: 10
+    peso: 8
     check: evidence.shell.gh_version_present
   - id: gh_repo_view_ok
-    peso: 15
+    peso: 12
     check: evidence.shell.gh_repo_view_ok
 perguntas:
   - texto: "O que você entendeu dos comandos que acabou de executar?"
@@ -41,4 +46,4 @@ perguntas:
       explicar com palavras próprias o que cada comando citado faz. Aceitar
       respostas em linguagem informal; rejeitar respostas evasivas ou copy-paste
       do enunciado.
-    peso: 10
+    peso: 30
