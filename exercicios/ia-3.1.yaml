@@ -1,0 +1,335 @@
+exercicio: "ia-3.1"
+titulo: "Do CSV ao gráfico com o script Ralph"
+turmas:
+  - IA-2026-01
+disponivel_a_partir_de: 2026-05-01T00:00:00-03:00
+prazo:
+  recomendado_ate: 2026-10-04T23:59:59-03:00
+
+# ---------------------------------------------------------------------------
+# VERSÃO SIMPLIFICADA (slides 38-39 da Aula 03).
+#
+# O que mudou em relação à versão anterior, e por quê:
+#
+#   * ENTRA `vendas_lojas.csv` — o inner join agora é entregue como arquivo,
+#     não só como etapa intermediária. Ele carrega os dois valores de
+#     conferência que o slide publica (420 linhas, R$ 931.274,06), então o
+#     aluno sabe se acertou antes de submeter. Era o ponto onde mais gente
+#     travava sem descobrir onde.
+#   * SAI o `README.md` com as seções "Decisão de join" e "Adaptação do
+#     ralph.sh", e com ele os dois critérios julgados por LLM (10 pontos). O
+#     exercício deixou de ser sobre argumentar a escolha de join e adaptar o
+#     laço ao harness: o enunciado agora diz o que entregar, e o aluno conduz
+#     o Ralph até lá. Os 10 pontos foram para os checks aritméticos do join.
+#   * SAI `src_com_pipeline` — onde mora o código virou problema do aluno; o
+#     `pytest_verde` já prova que existe pipeline.
+#   * Os artefatos moram na RAIZ do repo (`vendas_lojas.csv`,
+#     `pivot_receita.csv`, `index.html`), não em `data/` e `web/`. Só `tests/`
+#     e `scripts/ralph/` continuam em subdiretório.
+#
+# Layout do Ralph: o `ralph.sh` resolve tudo relativo a si mesmo (SCRIPT_DIR),
+# então `prd.json` e `progress.txt` moram em `scripts/ralph/`. Quem inventar
+# outro layout quebra o próprio loop antes de quebrar a nota.
+# ---------------------------------------------------------------------------
+artefatos:
+  - role: prd_json
+    path: scripts/ralph/prd.json
+  - role: join
+    path: vendas_lojas.csv
+  - role: pivot
+    path: pivot_receita.csv
+  - role: pagina_web
+    path: index.html
+
+# ---------------------------------------------------------------------------
+# Comandos que o CLI executa na máquina do aluno. O backend monta a whitelist
+# a partir desta mesma lista, então editar aqui vale para os dois lados.
+#
+# `python` e `python3` aparecem os dois de propósito: em Windows nativo existe
+# `python`, em WSL/macOS costuma existir só `python3`.
+#
+# `npm exec -y skills -- list` é a detecção de skill agnóstica de harness. Não
+# é `npx` porque `npx` não está na allowlist do CLI e `npm` está — `npm exec`
+# faz a mesma coisa. Roda nos DOIS escopos porque `skills add` instala em
+# escopo projeto quando chamado dentro de um projeto e em escopo usuário com
+# `-g`; o critério aceita qualquer um dos dois.
+# ---------------------------------------------------------------------------
+comandos_shell:
+  - cmd: ["gh", "--version"]
+    extract: gh_version
+  - cmd: ["gh", "auth", "status"]
+    extract: gh_auth
+  - cmd: ["gh", "repo", "view", "{owner_repo}", "--json", "visibility,name,isPrivate"]
+    extract: gh_repo_view
+  - cmd: ["python", "-m", "pytest", "-q", "--tb=no"]
+    extract: pytest
+    timeout: 180
+  - cmd: ["python3", "-m", "pytest", "-q", "--tb=no"]
+    extract: pytest3
+    timeout: 180
+  - cmd: ["npm", "exec", "-y", "skills", "--", "list"]
+    extract: skills_projeto
+    timeout: 180
+  - cmd: ["npm", "exec", "-y", "skills", "--", "list", "-g"]
+    extract: skills_global
+    timeout: 180
+
+# ---------------------------------------------------------------------------
+# Balanço da nota: 70 pontos em critérios + 30 nas perguntas = 100.
+#
+# Distribuição por bloco:
+#   setup/repo ............. 8
+#   skills disponíveis ..... 4   (diagnóstico de ambiente, peso baixo de propósito)
+#   ralph + prd ............ 8
+#   log da execução ........ 3
+#   testes ................ 10
+#   join (vendas_lojas) ... 12
+#   pivot ................. 13
+#   página web ............. 9
+#   higiene ................ 3
+#
+# Nenhum critério objetivo é julgado por LLM nesta versão — tudo que vale ponto
+# aqui é aritmética, presença de arquivo ou saída de comando. O julgamento do
+# aluno é cobrado só nas duas perguntas da CLI.
+# ---------------------------------------------------------------------------
+criterios:
+  # === Setup e repositório (8) ===
+  - id: repo_existe
+    peso: 2
+    check: github.repo.exists
+  - id: repo_publico
+    peso: 2
+    check: github.repo.public
+  - id: repo_nome_ralph_lab
+    peso: 1
+    check: github.repo.name_matches
+    args:
+      pattern: "ralph-lab"
+  - id: gh_autenticado
+    peso: 2
+    check: evidence.shell.gh_auth_ok
+  - id: gh_repo_view_ok
+    peso: 1
+    check: evidence.shell.gh_repo_view_ok
+
+  # === Skills do Ralph disponíveis no ambiente (4) ===
+  # Presença, não mérito: prova que o ambiente estava montado na submissão.
+  # Casa com o caminho de instalação do enunciado (`npx skills add`), que é o
+  # único que funciona nos quatro harnesses E é inspecionável.
+  - id: skill_prd_disponivel
+    peso: 2
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [skills_projeto, skills_global]
+      # O caminho de instalação (`.../skills/prd`) é mais específico que o
+      # nome solto, que apareceria dentro de qualquer palavra.
+      pattern: 'skills[\\/]prd(?![\w-])'
+      descricao: "skill /prd disponível no ambiente do agente"
+  - id: skill_ralph_disponivel
+    peso: 2
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [skills_projeto, skills_global]
+      pattern: 'skills[\\/]ralph(?![\w-])'
+      descricao: "skill /ralph disponível no ambiente do agente"
+
+  # === O script e a memória externa do loop (8) ===
+  - id: ralph_sh_versionado
+    peso: 2
+    check: github.repo.files_matching_min
+    args:
+      pattern: "*ralph.sh"
+      min: 1
+      descricao: "ralph.sh versionado no repo"
+  - id: prd_json_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: prd_json
+  - id: prd_json_substantivo
+    peso: 4
+    check: evidence.artifacts.word_count_min
+    args:
+      role: prd_json
+      # A memória que sobrevive entre iterações. Um esqueleto vazio não conduz
+      # loop nenhum, e o `/ralph` produz bem mais que isto.
+      min: 100
+
+  # === Log da execução do loop (3) ===
+  - id: log_ralph_nao_vazio
+    peso: 3
+    check: github.repo.file_not_empty
+    args:
+      # `./scripts/ralph/ralph.sh --tool <harness> 10 2>&1 | tee ralph-run.log`
+      # rodado da raiz do repo, então o log cai na raiz.
+      path: ralph-run.log
+
+  # === Testes (10) ===
+  - id: tests_existem
+    peso: 2
+    check: github.repo.files_matching_min
+    args:
+      pattern: "tests/test_*.py"
+      min: 1
+      descricao: "arquivos de teste em tests/"
+  - id: pytest_verde
+    peso: 8
+    check: evidence.shell.pytest_passed
+    args:
+      extract: [pytest, pytest3]
+      min_tests: 4
+
+  # === Inner join (12) ===
+  # Os dois valores de conferência que o slide publica. São o que separa "o
+  # agente escreveu um join" de "o agente escreveu o join certo": quem deixar
+  # as 3 vendas órfãs (id_loja=999) entrarem erra as duas contas, e quem fizer
+  # left join a partir de lojas.csv ganha uma linha fantasma da loja 108.
+  - id: join_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: join
+  - id: join_420_linhas
+    peso: 5
+    check: evidence.artifacts.csv_shape
+    args:
+      role: join
+      # 423 vendas - 3 órfãs = 420. `cols` fica de fora de propósito: quais
+      # colunas de lojas.csv o aluno carrega para o join é escolha dele.
+      rows: 420
+  - id: join_receita_total
+    peso: 5
+    check: evidence.artifacts.csv_sum_equals
+    args:
+      role: join
+      # Somar só `receita_brl`: sem isso a soma pegaria `id_loja` e `unidades`
+      # junto. Por consequência, a coluna precisa manter o nome de origem — o
+      # enunciado diz isso.
+      columns: [receita_brl]
+      expected: 931274.06
+      tolerance: 0.5
+
+  # === Pivot (13) ===
+  - id: pivot_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: pivot
+  - id: pivot_cabecalho
+    peso: 3
+    check: evidence.artifacts.csv_columns
+    args:
+      role: pivot
+      exact: true
+      columns:
+        - regiao
+        - "2026-01"
+        - "2026-02"
+        - "2026-03"
+        - "2026-04"
+        - "2026-05"
+        - "2026-06"
+  - id: pivot_forma_4x6
+    peso: 3
+    check: evidence.artifacts.csv_shape
+    args:
+      role: pivot
+      rows: 4   # Centro-Oeste, Nordeste, Sudeste, Sul
+      cols: 7   # a coluna `regiao` + os 6 meses
+  - id: pivot_total_confere
+    peso: 5
+    check: evidence.artifacts.csv_sum_equals
+    args:
+      role: pivot
+      expected: 931274.06
+      # Folga de 1 centavo por linha: arredondar por célula ou só no total dá
+      # diferenças dessa ordem, e isso não é erro de pipeline.
+      tolerance: 0.5
+      skip_first_col: true
+
+  # === Página web (9) ===
+  - id: web_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: pagina_web
+  - id: web_tem_grafico
+    peso: 4
+    check: evidence.artifacts.content_matches
+    args:
+      role: pagina_web
+      pattern: '(<canvas|<svg|chart\.js|Chart\(|plotly|echarts|d3\.|vega)'
+      flags: i
+      descricao: "elemento de gráfico no index.html"
+  - id: web_tem_conclusao
+    peso: 3
+    check: evidence.artifacts.content_matches
+    args:
+      role: pagina_web
+      # `<p[^>]*>` casava com `<path d=... />` de um grafico SVG inline, e
+      # entao qualquer pagina com SVG e um `</p>` 300 caracteres adiante
+      # ganhava o ponto sem ter conclusao nenhuma.
+      pattern: '<p(?:\s[^>]*)?>[\s\S]{300,}?</p>'
+      flags: is
+      descricao: "parágrafo de conclusão com 300+ caracteres"
+
+  # === Higiene do repo (3) ===
+  - id: sem_segredos_versionados
+    peso: 3
+    check: github.repo.no_secret_files
+
+# ---------------------------------------------------------------------------
+# A reflexão do ia-3.1 é INTERATIVA: o aluno responde na CLI, no momento da
+# submissão, sem tempo de polir um texto para o commit. São duas perguntas
+# somando os mesmos 30 pontos da convenção dos ia-1.x.
+#
+# É aqui que entra o que saiu do README: a leitura das anomalias dos dados
+# agora é cobrada de viva-voz, não como texto commitado.
+# ---------------------------------------------------------------------------
+perguntas:
+  - texto: |
+      Descreva como você conduziu o loop do Ralph: o que você colocou no
+      prd.json como critério de pronto, o que o agente errou em alguma
+      iteração, e o que você mudou entre uma iteração e a seguinte para
+      destravá-lo.
+    criterios_avaliacao: |
+      A resposta deve (1) descrever com palavras próprias o que o aluno colocou
+      no prd.json como critério de pronto (ex: "o loop só para quando o pytest
+      passa", "o join tem que dar 420 linhas", "o pivot tem que bater
+      931.274,06"), e (2) relatar pelo menos UM erro concreto cometido pelo
+      agente numa iteração e o ajuste que o aluno fez em resposta.
+
+      Rejeitar: respostas que só narram os passos do enunciado; respostas que
+      dizem "funcionou de primeira" sem nenhum detalhe verificável; copy-paste
+      do prd.json ou do log como se fosse explicação.
+
+      Aceitar linguagem informal, e aceitar QUALQUER harness (Claude Code,
+      Codex, opencode, pi, Amp) — o exercício não privilegia nenhum. Se o aluno
+      relata honestamente que o loop estourou o limite de iterações e ele teve
+      que reescrever o prd.json, isso é uma BOA resposta: o exercício é sobre
+      conduzir o loop, não sobre acertar de primeira.
+    peso: 18
+  - texto: |
+      Os dados têm duas armadilhas: 3 vendas apontam para um id_loja que não
+      existe em lojas.csv, e a loja 108 (Batel) não teve venda nenhuma. Como o
+      seu pipeline tratou cada uma, e quem ficou de fora do relatório por causa
+      disso?
+    criterios_avaliacao: |
+      Esta pergunta cobra o que o aluno entendeu dos PRÓPRIOS dados, agora que
+      o README com a "Decisão de join" não é mais entregue.
+
+      A resposta deve (1) reconhecer as DUAS anomalias nominalmente — as vendas
+      órfãs com id_loja inexistente e a loja sem vendas — e (2) dizer o que o
+      pipeline fez com cada uma e qual é a consequência para quem lê o
+      relatório (a receita das 3 órfãs não aparece em região nenhuma; a loja
+      108 não aparece no pivot, então o Sul do relatório descreve uma operação
+      menor do que a real).
+
+      Aceitar números aproximados e linguagem informal. Aceitar que o aluno
+      defenda um tratamento diferente do inner join (ex.: "eu reportaria as
+      órfãs numa linha 'região desconhecida'"), DESDE QUE diga por quê.
+
+      Rejeitar: respostas que citam só uma das duas anomalias; "o join tratou
+      isso automaticamente" sem dizer como; descrição do que é um inner join
+      em vez do que aconteceu com estes dados.
+    peso: 12
