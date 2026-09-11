@@ -1,0 +1,287 @@
+exercicio: "ia-3.2"
+titulo: "Grill-me na revisão bibliográfica da dissertação"
+turmas:
+  - IA-2026-01
+disponivel_a_partir_de: 2026-05-01T00:00:00-03:00
+prazo:
+  recomendado_ate: 2026-10-04T23:59:59-03:00
+
+# SEM REPOSITÓRIO. A dissertação não precisa estar versionada no GitHub para
+# ser corrigida: o CLI não lê `remote.origin.url`, não manda `repo_url`, e o
+# backend não chama a API do GitHub. Quem já mantém o texto num repo pode
+# continuar — só não é mais exigência, e o diretório de trabalho serve.
+# A amarra de identidade continua existindo: o login Google diz quem é o aluno,
+# e `gh auth status` (abaixo) confere a conta GitHub contra o `github_username`
+# do roster — sem precisar que exista repositório nenhum.
+requer_repositorio: false
+
+# ---------------------------------------------------------------------------
+# EVIDÊNCIA 100% LOCAL — decisão de projeto, não acidente.
+#
+# O conteúdo deste exercício é a dissertação do aluno. Exigir repo PÚBLICO para
+# o backend ler a árvore pela API do GitHub obrigaria a publicar pesquisa em
+# andamento. Então aqui nenhum critério usa `github.*`: tudo vem de arquivos
+# lidos na máquina do aluno (`artefatos:`) e de comandos rodados na máquina do
+# aluno (`comandos_shell:`). Não é preciso repo nenhum — ver
+# `requer_repositorio: false` acima.
+#
+# Consequência que precisa ficar dita: o CONTEÚDO dos artefatos continua sendo
+# enviado ao backend e ao juiz LLM para ser avaliado — o que muda é que o
+# GitHub deixa de ser fonte de evidência, não que o texto não saia da máquina.
+# ---------------------------------------------------------------------------
+#
+# VERSÃO SIMPLIFICADA (slides 40-41 da Aula 03). O que mudou:
+#
+#   * O protocolo de revisão deixou de ser um formulário. Saíram os 6 critérios
+#     de seção (`protocolo_secao_*`), o `protocolo_tem_origem` e o
+#     `protocolo_origem_rastreavel` — 14 pontos de conferência de FORMATO.
+#     Ficaram `protocolo_existe` e `protocolo_qualidade`: o protocolo continua
+#     sendo entregue e julgado, mas pelo que diz, não pelo gabarito de títulos.
+#     O slide 40 pede que o próprio /grill-me produza esse artefato ao final da
+#     sessão, e um artefato gerado pelo agente não tem por que seguir a
+#     ortografia de heading que o autograder esperava.
+#   * O repositório deixou de ser exigência (`requer_repositorio: false`). Saiu
+#     o critério `repo_acessivel` e saiu o `gh repo view` dos comandos: não há
+#     mais repo para consultar. Quem quiser versionar a dissertação continua
+#     podendo; o autograder não olha. Os 2 pontos foram para a matriz.
+#   * Os 14 pontos liberados foram para o miolo do exercício: as respostas do
+#     transcript e as revisões de decisão, que são o que o /grill-me de fato
+#     treina.
+#   * `grill-me-transcript.md` e `REVISAO.md` ficam na RAIZ do diretório de
+#     onde o aluno roda `autograde validar`; só a matriz mora em `revisao/`,
+#     como o slide 41 escreve.
+# ---------------------------------------------------------------------------
+artefatos:
+  - role: grill_transcript
+    path: grill-me-transcript.md
+  - role: protocolo
+    path: revisao/protocolo-revisao.md
+  - role: matriz
+    path: revisao/matriz-literatura.csv
+  - role: reflexao
+    path: REVISAO.md
+
+comandos_shell:
+  - cmd: ["gh", "--version"]
+    extract: gh_version
+  - cmd: ["gh", "auth", "status"]
+    extract: gh_auth
+  # Detecção de skill agnóstica de harness. `npx skills add` instala para
+  # Claude Code, Codex, opencode, pi (e mais 60) gravando em
+  # `~/.agents/skills/<nome>/` e linkando para o diretório de cada agente;
+  # `skills list` lê de volta esse mesmo lugar. Não é `npx` porque `npx` não
+  # está na allowlist do CLI e `npm` está — `npm exec` faz a mesma coisa.
+  # Os dois escopos rodam porque `skills add` instala em escopo projeto quando
+  # chamado dentro de um projeto, e em escopo usuário com `-g`.
+  - cmd: ["npm", "exec", "-y", "skills", "--", "list"]
+    extract: skills_projeto
+    timeout: 180
+  - cmd: ["npm", "exec", "-y", "skills", "--", "list", "-g"]
+    extract: skills_global
+    timeout: 180
+
+# ---------------------------------------------------------------------------
+# Balanço da nota: 70 pontos em critérios + 30 na pergunta de reflexão = 100,
+# a mesma proporção dos ia-1.x.
+#
+# AGNÓSTICO DE HARNESS: Claude Code, Codex, opencode e pi resolvem o grill-me
+# pelo mesmo `npx skills add`, e a checagem de disponibilidade é a mesma para
+# os quatro. Nenhum critério aqui pressupõe um agente específico.
+#
+# Distribuição por bloco:
+#   setup local ............. 2   (só `gh auth status`; era 4 com repo_acessivel)
+#   skill disponível ........ 3
+#   transcript do grill-me . 34   (era 22 — recebeu o que saiu do formato)
+#   protocolo de revisão ... 10   (era 23 — só existência + qualidade)
+#   matriz de literatura ... 13   (era 11 — recebeu os 2 do repo_acessivel)
+#   reflexão ................ 8
+#
+# Não há critério de ORDEM de commits: quem commita tudo de uma vez tira a
+# mesma nota de quem commita em etapas.
+# ---------------------------------------------------------------------------
+criterios:
+  # === Setup local (2) ===
+  # Único vínculo com o GitHub que sobrou. Não exige repositório: `gh auth
+  # status` só diz QUEM está logado, e `gh_auth_ok` compara esse usuário com o
+  # `github_username` do roster. É a amarra de identidade do exercício.
+  - id: gh_autenticado
+    peso: 2
+    check: evidence.shell.gh_auth_ok
+  # === Skill disponível no ambiente (3) ===
+  # Presença, não mérito — e por isso peso baixo. O que vale é o USO, medido no
+  # transcript. Vale para os quatro harnesses porque o `skills list` lê o
+  # diretório canônico (`~/.agents/skills/`) que o `skills add` alimenta,
+  # qualquer que seja o agente de destino.
+  - id: skill_grill_me_disponivel
+    peso: 3
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [skills_projeto, skills_global]
+      # O caminho de instalação é mais específico que o nome solto e não colide
+      # com a skill vizinha `grill-with-docs` do mesmo repositório.
+      pattern: 'skills[\\/]grill-me(?![\w-])'
+      descricao: "skill grill-me disponível no ambiente do agente"
+
+  # === Transcript do grill-me (34) ===
+  # É aqui que o exercício mora. Os 12 pontos que saíram da conferência de
+  # formato do protocolo vieram para cá.
+  - id: transcript_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: grill_transcript
+  - id: transcript_16_perguntas
+    peso: 8
+    check: evidence.artifacts.content_matches
+    args:
+      role: grill_transcript
+      # Q1 ou Q01 — a numeração com um ou dois dígitos vale igual, formatação
+      # não é o que se está avaliando aqui.
+      pattern: '^\s*(?:#{1,6}\s*)?(?:\*\*)?Q\d{1,2}\b'
+      flags: m
+      min: 16
+      descricao: "perguntas numeradas (Q1/Q01, Q2/Q02, ...)"
+  - id: transcript_respostas_substantivas
+    peso: 12
+    check: judge.artifacts.rubric
+    args:
+      role: grill_transcript
+      rubrica: |
+        Este é o transcript de uma sessão /grill-me sobre a revisão
+        bibliográfica da dissertação do aluno. Cada pergunta numerada (Q1,
+        Q2, ... ou Q01, Q02, ...) deveria ter uma resposta do aluno logo
+        abaixo.
+
+        Avalie as RESPOSTAS, não as perguntas.
+      sub_criterios:
+        - "A grande maioria das perguntas numeradas tem resposta do aluno abaixo dela — não ficaram perguntas soltas sem resposta"
+        - "As respostas são decisões, não evasivas: rejeitar predominância de 'tanto faz', 'você decide', 'sim', 'ok', 'concordo' sem conteúdo"
+        - "As respostas são específicas do tema da dissertação do aluno (nomeia construtos, bases, recortes concretos) e não poderiam ser coladas em qualquer outra dissertação"
+  - id: transcript_revisa_decisoes
+    peso: 12
+    check: judge.artifacts.rubric
+    args:
+      role: grill_transcript
+      rubrica: |
+        Numa design tree, algumas perguntas REABREM uma decisão já tomada
+        antes: a resposta de Q09 revela que a escolha feita em Q03 não se
+        sustenta, e a decisão anterior é revisada.
+
+        Conte quantas vezes isso acontece neste transcript. O enunciado exige
+        pelo menos 3.
+
+        Score:
+        - 1.0: 3 ou mais revisões explícitas de decisão anterior, cada uma
+          identificando qual decisão está sendo revista e por quê
+        - 0.5: 1 ou 2 revisões, ou revisões apenas implícitas
+        - 0.0: nenhuma — o transcript é uma coleta linear de respostas, cada
+          pergunta independente da anterior
+
+  # === Protocolo de revisão (10) ===
+  # Sem gabarito de títulos: o artefato é gerado pelo próprio /grill-me ao fim
+  # da sessão (slide 40), então cobrar a ortografia dos headings media a
+  # obediência do agente, não o trabalho do aluno. O que sobrou é o que
+  # importa — o protocolo é defensável ou não é.
+  - id: protocolo_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: protocolo
+  - id: protocolo_qualidade
+    peso: 8
+    check: judge.artifacts.rubric
+    args:
+      roles: [protocolo, grill_transcript]
+      rubrica: |
+        Avalie o protocolo de revisão (primeiro bloco) à luz do transcript do
+        grill-me (segundo bloco). O protocolo deveria ser DEFENSÁVEL: outro
+        pesquisador conseguiria repetir a busca a partir dele.
+
+        Não exija títulos de seção específicos nem um formato fixo: o artefato
+        foi gerado pelo agente ao final da sessão. Avalie se o CONTEÚDO está
+        lá, com o nome que estiver.
+      sub_criterios:
+        - "Cobre os seis pontos do enunciado, em qualquer arranjo: pergunta de pesquisa, construtos, bases, strings de busca, janela temporal e critérios de inclusão/exclusão"
+        - "As strings de busca são strings de verdade — termos, operadores booleanos, aspas ou truncamentos — e não uma descrição em prosa do que se pretende buscar"
+        - "Os critérios de inclusão e exclusão são aplicáveis por outra pessoa sem consultar o autor (dizem o que entra e o que sai, com corte verificável)"
+        - "As seções são coerentes entre si: os construtos aparecem nas strings de busca, e a janela temporal conversa com a pergunta de pesquisa"
+        - "O conteúdo é rastreável ao transcript: as decisões registradas aqui aparecem lá, e não surgiram do nada depois da sessão"
+
+  # === Matriz de literatura (13) ===
+  # Recebeu os 2 pontos do `repo_acessivel` removido: é o entregável que mais
+  # trabalho dá por ponto, e o único que obriga a olhar cada referência.
+  - id: matriz_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: matriz
+  - id: matriz_colunas
+    peso: 5
+    check: evidence.artifacts.csv_columns
+    args:
+      role: matriz
+      delimiter: ";"
+      exact: true
+      columns:
+        - autor
+        - ano
+        - titulo
+        - base
+        - tipo_estudo
+        - construto
+        - achado
+        - lacuna
+        - relacao_com_pergunta
+  - id: matriz_15_referencias
+    peso: 6
+    check: evidence.artifacts.csv_rows_min
+    args:
+      role: matriz
+      delimiter: ";"
+      min: 15
+
+  # === Reflexão (8) ===
+  - id: reflexao_existe
+    peso: 1
+    check: evidence.artifacts.exists
+    args:
+      role: reflexao
+  - id: reflexao_tamanho
+    peso: 2
+    check: evidence.artifacts.line_count_min
+    args:
+      role: reflexao
+      min: 5
+      max: 40
+  - id: reflexao_qualidade
+    peso: 5
+    check: judge.artifacts.rubric
+    args:
+      role: reflexao
+      rubrica: |
+        Este é o REVISAO.md — a reflexão sobre o que o /grill-me revelou que o
+        aluno não sabia que não sabia (desconhecido desconhecido → conhecido
+        desconhecido).
+      sub_criterios:
+        - "Nomeia pelo menos uma coisa concreta que o aluno NÃO tinha considerado antes da sessão e passou a considerar depois"
+        - "Liga essa descoberta a uma pergunta específica da sessão, não a uma impressão geral"
+        - "Não é elogio à ferramenta ('o grill-me é ótimo') nem resumo do que a skill faz"
+
+perguntas:
+  - texto: |
+      Qual foi a pergunta do /grill-me que mais mudou o seu recorte de revisão,
+      e o que exatamente mudou? Cite o número da pergunta (Qnn) e diga qual
+      decisão anterior sua ela derrubou.
+    criterios_avaliacao: |
+      A resposta deve (1) citar uma pergunta específica pelo número e reproduzir
+      ou parafrasear seu conteúdo, e (2) descrever a decisão que existia ANTES e
+      a que passou a valer DEPOIS — um antes-e-depois concreto.
+
+      Aceitar: mudanças de escopo, de construto, de base, de janela temporal, de
+      critério de inclusão. Aceitar também quando o aluno diz que a pergunta
+      confirmou a decisão anterior, DESDE QUE explique por que ele agora a
+      defende melhor do que antes.
+
+      Rejeitar: respostas que elogiam a ferramenta sem citar pergunta; respostas
+      genéricas ("me fez pensar melhor"); copy-paste do protocolo.
+    peso: 30

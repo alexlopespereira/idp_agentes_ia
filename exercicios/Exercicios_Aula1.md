@@ -29,15 +29,27 @@ Antes de começar qualquer exercício, garanta que você tem todas as ferramenta
 | **CLI `autograde`** | última do repo | Validar e submeter exercícios | [Parte 1.4](#14-instalar-o-cli-autograde) |
 | **Agente de codificação** | qualquer | Automatizar comandos (exercícios ia-1.3 e ia-1.4) | instale antes do ia-1.3 |
 
-**Agentes de codificação suportados** (escolha um — qualquer um que rode no seu terminal serve):
-- **Claude Code** (Anthropic) — `claude` na linha de comando
-- **Codex CLI** (OpenAI) — `codex`
-- **Cursor** (IDE com agente embutido) — `cursor .`
-- **GitHub Copilot CLI** — `gh copilot`
-- **OpenCode** — `opencode`
-- Entre outros
+**Agentes de codificação suportados.** Escolha **um destes quatro** e use o mesmo o semestre inteiro:
 
-> Em Windows, prefira rodar o agente dentro do **WSL2**. Claude Code e Codex CLI têm comportamento divergente em Windows nativo.
+| Harness | Comando | Instalação |
+|---|---|---|
+| **Claude Code** (Anthropic) | `claude` | `npm install -g @anthropic-ai/claude-code` |
+| **Codex CLI** (OpenAI) | `codex` | `npm install -g @openai/codex` |
+| **opencode** | `opencode` | `curl -fsSL https://opencode.ai/install \| bash` |
+| **pi** | `pi` | veja [earendil-works/pi](https://github.com/earendil-works/pi) |
+
+**Nenhum exercício da disciplina privilegia um harness.** A correção olha o que
+você produziu — repositório, commits, PRs, arquivos — e nunca qual agente os
+produziu. Onde um exercício precisa de uma *skill* (a partir da Aula 3), a
+instalação é feita por `npx skills add`, que atende os quatro pelo mesmo comando.
+
+Outros agentes (Cursor, GitHub Copilot CLI, Amp, aider…) funcionam para os
+exercícios da Aula 1, que só cobram o resultado no GitHub. A partir da Aula 3,
+fique nos quatro da tabela: são os que o autograder consegue verificar.
+
+> Em Windows, prefira rodar o agente dentro do **WSL2** — vários harnesses têm
+> comportamento divergente em Windows nativo. A CLI `autograde`, essa, roda bem
+> nos dois.
 
 ### Contas que você precisa ter
 
@@ -507,7 +519,7 @@ Pré-requisito: `gh` autenticado (Parte 1.3) e um agente de codificação dispon
 
 ```bash
 mkdir ~/agente-cria-repo && cd ~/agente-cria-repo
-claude  # ou: cursor . / codex / aider / etc
+claude  # ou: codex / opencode / pi — tanto faz, use o seu
 ```
 
 **2. Instruir o agente**
@@ -729,7 +741,10 @@ Não. Backend cruza com o roster da turma, que tem email institucional.
 Sim, ex ia-1.1 só usa GitHub API; `gh` é só pra ex ia-1.2+.
 
 **P: Windows nativo funciona?**
-Sim para ia-1.1 e ia-1.2. Para o futuro **exercício 3** (evidência IA), use **WSL2** — Claude Code/Codex CLI têm comportamento divergente em Windows nativo.
+Sim para todos os exercícios: a CLI `autograde` roda em Windows nativo, WSL2 e macOS. Para rodar o **agente**, prefira WSL2 — vários harnesses divergem em Windows nativo.
+
+**P: Preciso usar Claude Code? Perco nota se usar outro?**
+Não e não. Claude Code, Codex, opencode e pi são igualmente aceitos em todos os exercícios, e nenhum critério de nenhum YAML pergunta qual você usou. Na Aula 3 você registra qual harness conduziu o trabalho — mas isso é rastreabilidade, não preferência.
 
 **P: Posso ver minhas notas em algum lugar?**
 `autograde notas`. Lê direto da planilha do professor.
@@ -755,7 +770,8 @@ recusa sobrescrever, o que impede um aluno cravar o username de outro.
 | ia-1.2 | ✅ disponível | PR + uso de `gh` CLI |
 | ia-1.3 | ✅ disponível | Agente cria repo + clone com `gh` |
 | ia-1.4 | ✅ disponível | Agente cria arquivo + PR + merge com `gh` |
-| 3 | em elaboração | Evidência ampliada de uso de IA |
+| ia-3.1 | ✅ disponível | Loop do Ralph: CSV → pivot → página web ([enunciado](Exercicios_Aula3.md#exercício-ia-31--do-csv-ao-gráfico-com-o-script-ralph)) |
+| ia-3.2 | ✅ disponível | Grill-me na revisão bibliográfica da dissertação ([enunciado](Exercicios_Aula3.md#exercício-ia-32--grill-me-na-revisão-bibliográfica-da-dissertação)) |
 
 Critérios e prazos de cada um vivem no YAML correspondente em [`idp_agentes_ia/exercicios/`](https://github.com/alexlopespereira/idp_agentes_ia/tree/main/exercicios).
 
