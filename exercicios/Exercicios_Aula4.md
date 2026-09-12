@@ -10,15 +10,22 @@ conferir o que ele fez:
 
 **Prazo dos dois: 18/10.**
 
-Os dois exercícios exigem **repositório público no GitHub**, e os dois são
-**agnósticos de harness**: Claude Code, Codex, opencode, pi ou Amp — nenhum
+**Nenhum dos dois exige repositório.** Não é preciso criar nada no GitHub, nem
+sequer rodar `git init`: uma pasta comum na sua máquina basta. Quem preferir
+versionar continua podendo — o autograder não olha. Os dois também são
+**agnósticos de harness**: Claude Code, Codex, opencode, pi ou Amp, nenhum
 critério pergunta qual você usou. Nenhum deles precisa de `npx skills add`
 desta vez.
+
+> A amarra de identidade continua de pé: o login Google diz quem você é e
+> `gh auth status` confere a sua conta do GitHub contra o `github_username` do
+> roster. Ou seja, o `gh` ainda precisa estar **autenticado** — o que não
+> precisa existir é **repositório**.
 
 Se você ainda não fez o setup (Python, Git, `gh`, CLI `autograde`, login
 Google), volte para a [Parte 1 do tutorial da Aula 1](Exercicios_Aula1.md#parte-1--setup-uma-vez-no-semestre).
 
-O fluxo de entrega é o de sempre — **de dentro do diretório do repositório**:
+O fluxo de entrega é o de sempre — **de dentro da pasta do exercício**:
 
 ```bash
 cd <diretório do exercício>
@@ -54,7 +61,7 @@ recebeu o texto"* e *"o modelo tem acesso à fonte"*.
 
 ### O que você entrega
 
-Um repositório **público** chamado **`notas-mcp`** no seu usuário do GitHub:
+Uma pasta chamada **`notas-mcp`** na sua máquina — não precisa ser repositório:
 
 ```
 notas-mcp/
@@ -65,20 +72,22 @@ notas-mcp/
 └── transcript-mcp.md        # a sessão do host resumindo as notas
 ```
 
-> Os cinco arquivos ficam na **raiz** do repo e os nomes batem exatamente,
+> Os cinco arquivos ficam na **raiz da pasta** e os nomes batem exatamente,
 > incluindo maiúsculas.
 >
 > **Este exercício é em Python.** O SDK TypeScript resolve o mesmo problema,
 > mas a evidência que a CLI coleta é `python cliente_teste.py` — um cliente em
 > Node não seria executado, e os 19 pontos da execução real ficariam de fora.
 
-### Passo 1 — Crie o repo
+### Passo 1 — Crie a pasta
 
 ```bash
-gh repo create notas-mcp --public --clone
-cd notas-mcp
+mkdir notas-mcp && cd notas-mcp
 pip install "mcp>=2"      # SDK Python; em TypeScript: npm i @modelcontextprotocol/sdk
 ```
+
+> Sem `git init` e sem `gh repo create`: o autograder lê os arquivos e roda os
+> comandos **nesta pasta**, na sua máquina.
 
 ### Passo 2 — O servidor
 
@@ -133,7 +142,7 @@ inventado pelo cliente.
 - Escolha uma primeira linha sem aspas e sem barra invertida; o JSON escapa
   esses caracteres e a comparação falha por um detalhe bobo.
 
-Rode **de dentro do repo**, antes de validar:
+Rode **de dentro da pasta**, antes de validar:
 
 ```bash
 python cliente_teste.py
@@ -180,19 +189,16 @@ na CLI, na hora de submeter, e valem 30 dos 100 pontos:
    qual atingiria alguém que instalasse um servidor como o seu, e que
    **mitigação** você adotaria.
 
-A CLI roda, na sua máquina: `gh --version`, `gh auth status`, `gh repo view` e
-**`python cliente_teste.py`** (com `python3` como alternativa).
+A CLI roda, na sua máquina: `gh --version`, `gh auth status` e
+**`python cliente_teste.py`** (com `python3` como alternativa). Não há mais
+`gh repo view` — não há repo para consultar.
 
 ### Critérios do ia-4.1
 
 | Critério | Peso | O que precisa |
 |---|---:|---|
-| `repo_existe` | 2 | o repo existe no seu usuário |
-| `repo_publico` | 2 | visibilidade = public |
-| `repo_nome_notas_mcp` | 1 | o repo se chama `notas-mcp` |
 | `gh_autenticado` | 2 | `gh auth status` OK, na conta do roster |
-| `gh_repo_view_ok` | 1 | `gh repo view` funciona no repo |
-| `notas_existe` | 2 | `notas.md` na raiz |
+| `notas_existe` | 2 | `notas.md` na raiz da pasta |
 | `notas_5_linhas` | 3 | ≥ 5 linhas não vazias |
 | `servidor_existe` | 2 | `servidor_mcp.py` na raiz |
 | `servidor_registra_resource` | 6 | registra um **resource** |
@@ -201,15 +207,14 @@ A CLI roda, na sua máquina: `gh --version`, `gh auth status`, `gh repo view` e
 | `cliente_existe` | 2 | `cliente_teste.py` na raiz |
 | `cliente_usa_sdk_mcp` | 3 | fala MCP pelo SDK |
 | `cliente_grava_evidencia` | 2 | grava `evidencia-mcp.json` |
-| `mcp_envelope_stdio` | 4 | envelope com `"transporte": "stdio"` |
-| `mcp_lista_resources` | 6 | `list_resources` devolveu ≥ 1 URI |
-| `mcp_leu_conteudo` | 5 | `conteudo_chars` ≥ 100 |
-| `mcp_sem_traceback` | 4 | o cliente rodou sem estourar exceção |
+| `mcp_envelope_stdio` | 5 | envelope com `"transporte": "stdio"` |
+| `mcp_lista_resources` | 7 | `list_resources` devolveu ≥ 1 URI |
+| `mcp_leu_conteudo` | 6 | `conteudo_chars` ≥ 100 |
+| `mcp_sem_traceback` | 5 | o cliente rodou sem estourar exceção |
 | `evidencia_existe` | 2 | `evidencia-mcp.json` na raiz |
-| `evidencia_bate_com_notas` | 4 | a `primeira_linha` existe no `notas.md` |
+| `evidencia_bate_com_notas` | 7 | a `primeira_linha` existe no `notas.md` |
 | `transcript_existe` | 2 | `transcript-mcp.md` na raiz |
-| `transcript_qualidade` | 6 | o host leu pelo servidor (LLM avalia) |
-| `sem_segredos_versionados` | 3 | nenhum `.env`, `.pem`, `credentials.json`… |
+| `transcript_qualidade` | 8 | o host leu pelo servidor (LLM avalia) |
 | pergunta 1 | 18 | resource x colagem — respondida na CLI |
 | pergunta 2 | 12 | ataque e mitigação — respondida na CLI |
 | **Total** | **100** | |
@@ -244,7 +249,7 @@ teste que controla o relógio verifica.
 
 ### O que você entrega
 
-Um repositório **público** chamado **`snake-e2e`**:
+Uma pasta chamada **`snake-e2e`** — também sem exigência de repositório:
 
 ```
 snake-e2e/
@@ -253,18 +258,17 @@ snake-e2e/
 │   └── snake.spec.js        # a suíte E2E — este nome exato
 ├── playwright.config.js     # o config do Playwright
 ├── package.json             # com @playwright/test em devDependencies
-├── .gitignore               # node_modules/, test-results/, playwright-report/
+├── .gitignore               # opcional, se versionar: node_modules/, test-results/
 └── E2E.md                   # o ciclo até o verde: o que quebrou e o que mudou
 ```
 
 > **`tests/snake.spec.js`, em JavaScript.** Se você escrever em TypeScript, o
-> autograder não acha o arquivo e você perde 16 pontos com a suíte verde.
+> autograder não acha o arquivo e você perde 19 pontos com a suíte verde.
 
-### Passo 1 — Crie o repo e instale o Playwright
+### Passo 1 — Crie a pasta e instale o Playwright
 
 ```bash
-gh repo create snake-e2e --public --clone
-cd snake-e2e
+mkdir snake-e2e && cd snake-e2e
 npm init -y
 npm i -D @playwright/test
 npx playwright install chromium     # baixa o navegador; sem isso a suíte nem roda
@@ -299,7 +303,7 @@ test('comer a maçã soma 1 no placar', async ({ page }) => {
 });
 ```
 
-Dois critérios carregam o peso do bloco (10 dos 16 pontos): **`page.clock`
+Dois critérios carregam o peso do bloco (14 dos 20 pontos): **`page.clock`
 presente** e **`.waitForTimeout(` ausente**. Dá para ter a suíte verde e perder
 os dois — verde por espera cega é exatamente o que o exercício quer eliminar.
 
@@ -329,27 +333,22 @@ As duas perguntas da CLI valem 30 dos 100 pontos:
 
 | Critério | Peso | O que precisa |
 |---|---:|---|
-| `repo_existe` | 2 | o repo existe no seu usuário |
-| `repo_publico` | 2 | visibilidade = public |
-| `repo_nome_snake_e2e` | 1 | o repo se chama `snake-e2e` |
 | `gh_autenticado` | 2 | `gh auth status` OK, na conta do roster |
-| `gh_repo_view_ok` | 1 | `gh repo view` funciona no repo |
-| `jogo_existe` | 2 | `index.html` na raiz |
+| `jogo_existe` | 2 | `index.html` na raiz da pasta |
 | `jogo_arquivo_unico` | 3 | sem `<script src>` e sem CSS externo |
 | `jogo_placar` | 3 | elemento `#score` |
 | `jogo_gameover` | 4 | elemento `#gameover` |
 | `jogo_setas` | 4 | as quatro setas tratadas |
 | `jogo_tick_automatico` | 4 | a cobra avança sozinha |
 | `teste_existe` | 2 | `tests/snake.spec.js` |
-| `teste_usa_clock` | 6 | ≥ 2 chamadas a `page.clock.` |
-| `teste_sem_wait_timeout` | 4 | nenhum `.waitForTimeout(` |
+| `teste_usa_clock` | 8 | ≥ 2 chamadas a `page.clock.` |
+| `teste_sem_wait_timeout` | 6 | nenhum `.waitForTimeout(` |
 | `teste_tres_cenarios` | 4 | ≥ 3 blocos `test(` |
-| `playwright_tres_verdes` | 10 | ≥ 3 testes passando |
-| `playwright_sem_falha` | 6 | nada `failed`, nada `flaky`, navegador instalado |
+| `playwright_tres_verdes` | 12 | ≥ 3 testes passando |
+| `playwright_sem_falha` | 7 | nada `failed`, nada `flaky`, navegador instalado |
 | `reflexao_existe` | 2 | `E2E.md` na raiz |
 | `reflexao_tamanho` | 2 | ≥ 5 linhas não vazias |
-| `reflexao_qualidade` | 3 | relato específico e coerente com a suíte (LLM avalia) |
-| `sem_segredos_versionados` | 3 | nenhum `.env`, `.pem`, `credentials.json`… |
+| `reflexao_qualidade` | 5 | relato específico e coerente com a suíte (LLM avalia) |
 | pergunta 1 | 18 | a falha concreta — respondida na CLI |
 | pergunta 2 | 12 | `page.clock` x `waitForTimeout` — respondida na CLI |
 | **Total** | **100** | |
@@ -379,8 +378,8 @@ uma primeira linha com aspas ou barra invertida, que o JSON escapa.
 
 **`mcp_*` zerado com o cliente funcionando.** A CLI roda `python
 cliente_teste.py` **no diretório de onde você chamou `autograde validar`**.
-Rode da raiz do repo, e faça o seu cliente resolver o caminho do servidor
-relativo ao próprio arquivo (`Path(__file__).parent`), não ao cwd.
+Rode da raiz da pasta do exercício, e faça o seu cliente resolver o caminho do
+servidor relativo ao próprio arquivo (`Path(__file__).parent`), não ao cwd.
 
 **`playwright_sem_falha` zerado com "browserType.launch".** Faltou
 `npx playwright install chromium`. O navegador não vem com o pacote.
