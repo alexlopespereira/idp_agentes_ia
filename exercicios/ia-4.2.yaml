@@ -1,0 +1,260 @@
+exercicio: "ia-4.2"
+titulo: "Jogo 2D e teste E2E com Playwright"
+turmas:
+  - IA-2026-01
+disponivel_a_partir_de: 2026-05-01T00:00:00-03:00
+prazo:
+  recomendado_ate: 2026-10-18T23:59:59-03:00
+
+# ---------------------------------------------------------------------------
+# Slide 41 da Aula 04. O jogo é o pretexto; o exercício é o VERIFICADOR.
+#
+# É a ponte entre dois pedaços da aula que parecem desconexos: o Playwright MCP
+# (slide 24) e os quatro mecanismos de test-time compute (slide 30). O ganho de
+# "busca e revisão" — escreve, roda o teste, lê o erro, corrige — é limitado
+# pela qualidade do verificador. Um teste que espera 3 segundos e torce não
+# verifica nada; um teste que controla o relógio verifica.
+#
+# Daí os dois critérios que carregam o peso do bloco de testes: `page.clock`
+# presente (6) e `waitForTimeout` ausente (4). O aluno pode ter uma suíte verde
+# e mesmo assim perder os dois — verde por espera cega é o que se quer eliminar.
+#
+# Determinismo é problema de PROJETO DO JOGO, não do teste. Quem sorteia a
+# primeira maçã sem semente não consegue afirmar "4 ticks e o placar vira 1", e
+# acaba escrevendo teste que lê estado interno por `page.evaluate`. O enunciado
+# avisa; o autograder não cobra o COMO, cobra o resultado.
+#
+# `npm exec` e não `npx`: o `npx` não está na allowlist de binários do CLI e o
+# `npm` está — `npm exec -y playwright -- test` faz exatamente a mesma coisa.
+# O timeout de 300s é o teto que o CLI aceita; 4 testes com relógio controlado
+# rodam em ~3s, então a folga é toda para o primeiro start do navegador.
+# ---------------------------------------------------------------------------
+artefatos:
+  - role: jogo
+    path: index.html
+  - role: teste
+    path: tests/snake.spec.js
+  - role: reflexao
+    path: E2E.md
+
+comandos_shell:
+  - cmd: ["gh", "--version"]
+    extract: gh_version
+  - cmd: ["gh", "auth", "status"]
+    extract: gh_auth
+  - cmd: ["gh", "repo", "view", "{owner_repo}", "--json", "visibility,name,isPrivate"]
+    extract: gh_repo_view
+  - cmd: ["npm", "exec", "-y", "playwright", "--", "test", "--reporter=line"]
+    extract: playwright
+    timeout: 300
+
+# ---------------------------------------------------------------------------
+# Balanço: 70 em critérios + 30 nas perguntas = 100.
+#
+#   setup/repo ............. 8
+#   o jogo ................ 20
+#   os testes ............. 16
+#   execução da suíte ..... 16
+#   reflexão (E2E.md) ...... 7
+#   higiene ................ 3
+# ---------------------------------------------------------------------------
+criterios:
+  # === Setup e repositório (8) ===
+  - id: repo_existe
+    peso: 2
+    check: github.repo.exists
+  - id: repo_publico
+    peso: 2
+    check: github.repo.public
+  - id: repo_nome_snake_e2e
+    peso: 1
+    check: github.repo.name_matches
+    args:
+      pattern: "snake-e2e"
+  - id: gh_autenticado
+    peso: 2
+    check: evidence.shell.gh_auth_ok
+  - id: gh_repo_view_ok
+    peso: 1
+    check: evidence.shell.gh_repo_view_ok
+
+  # === O jogo (20) ===
+  - id: jogo_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: jogo
+  - id: jogo_arquivo_unico
+    peso: 3
+    check: evidence.artifacts.content_absent
+    args:
+      role: jogo
+      # "HTML/CSS/JS puro, um só arquivo": sem `<script src=...>` e sem
+      # stylesheet externo. CDN de framework cai aqui, que é o ponto.
+      pattern: '<script[^>]*\ssrc\s*=|<link[^>]*stylesheet'
+      flags: i
+      descricao: "jogo em arquivo único (sem script/CSS externo)"
+  - id: jogo_placar
+    peso: 3
+    check: evidence.artifacts.content_matches
+    args:
+      role: jogo
+      pattern: 'id\s*=\s*["'']score["'']'
+      descricao: "elemento #score na página"
+  - id: jogo_gameover
+    peso: 4
+    check: evidence.artifacts.content_matches
+    args:
+      role: jogo
+      pattern: 'id\s*=\s*["'']gameover["'']'
+      descricao: "elemento #gameover na página"
+  - id: jogo_setas
+    peso: 4
+    check: evidence.artifacts.content_matches
+    args:
+      role: jogo
+      # As quatro setas. Quem tratar só duas direções perde aqui.
+      pattern: 'Arrow(?:Up|Down|Left|Right)'
+      min: 4
+      descricao: "as quatro setas do teclado"
+  - id: jogo_tick_automatico
+    peso: 4
+    check: evidence.artifacts.content_matches
+    args:
+      role: jogo
+      # A cobra anda sozinha: tem que existir um relógio. É também o que o
+      # `page.clock` do teste vai controlar — sem isso o exercício não fecha.
+      pattern: 'setInterval|setTimeout|requestAnimationFrame'
+      descricao: "a cobra avança sozinha a cada tick"
+
+  # === Os testes (16) ===
+  - id: teste_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: teste
+  - id: teste_usa_clock
+    peso: 6
+    check: evidence.artifacts.content_matches
+    args:
+      role: teste
+      # Pelo menos duas chamadas: `install()` e algum `runFor`/`fastForward`.
+      pattern: 'page\.clock\.'
+      min: 2
+      descricao: "o teste controla o relógio com page.clock"
+  - id: teste_sem_wait_timeout
+    peso: 4
+    check: evidence.artifacts.content_absent
+    args:
+      role: teste
+      # A CHAMADA, não a palavra: `.waitForTimeout(` — assim comentar sobre
+      # ela no arquivo ("nenhum waitForTimeout aqui") não custa 4 pontos, e uma
+      # chamada comentada continua custando, que é o certo.
+      pattern: '\.waitForTimeout\s*\('
+      descricao: "nenhuma espera cega (waitForTimeout)"
+  - id: teste_tres_cenarios
+    peso: 4
+    check: evidence.artifacts.content_matches
+    args:
+      role: teste
+      # `test(` no começo da linha — `test.beforeEach(` não conta, de propósito.
+      pattern: '^\s*test\s*\('
+      flags: m
+      min: 3
+      descricao: "pelo menos 3 cenários de teste"
+
+  # === Execução da suíte (16) ===
+  - id: playwright_tres_verdes
+    peso: 10
+    check: evidence.shell.stdout_matches
+    args:
+      extract: playwright
+      # ">= 3 passed" — o reporter `line` fecha com "4 passed (2.2s)".
+      pattern: '\b(?:[3-9]|\d{2,}) passed\b'
+      descricao: "pelo menos 3 testes passando"
+  - id: playwright_sem_falha
+    peso: 6
+    check: evidence.shell.stdout_absent
+    args:
+      extract: playwright
+      # `flaky` reprova junto: teste que só passa no retry é espera cega
+      # disfarçada. `browserType.launch` é o navegador que não foi instalado —
+      # `npx playwright install chromium` resolve, e o aluno precisa ver isso.
+      pattern: '\b\d+ (?:failed|flaky)\b|browserType\.launch'
+      descricao: "nenhum teste falhando, flaky ou navegador faltando"
+
+  # === Reflexão (7) ===
+  - id: reflexao_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: reflexao
+  - id: reflexao_tamanho
+    peso: 2
+    check: evidence.artifacts.line_count_min
+    args:
+      role: reflexao
+      min: 5
+  - id: reflexao_qualidade
+    peso: 3
+    check: judge.artifacts.rubric
+    args:
+      roles: [reflexao, teste]
+      rubrica: |
+        O primeiro bloco é o `E2E.md`, onde o aluno relata o ciclo até a suíte
+        ficar verde. O segundo bloco é a suíte de testes entregue.
+
+        O que se avalia: o relato descreve FALHAS CONCRETAS e o que mudou por
+        causa delas, e o que ele diz bate com o teste entregue.
+      sub_criterios:
+        - "Descreve pelo menos uma falha específica e verificável (qual cenário quebrou, qual valor veio, qual era o esperado) — não 'deu erro e eu corrigi'"
+        - "Diz o que foi mudado em resposta a cada falha e onde: no jogo ou na asserção do teste"
+        - "O relato é consistente com o arquivo de teste do segundo bloco — não descreve um teste que não existe ali"
+
+  # === Higiene do repo (3) ===
+  # `node_modules/` e `test-results/` no `.gitignore` também moram aqui, na
+  # prática: repo que versiona o mundo costuma versionar segredo junto.
+  - id: sem_segredos_versionados
+    peso: 3
+    check: github.repo.no_secret_files
+
+perguntas:
+  - texto: |
+      Conte uma falha concreta que a sua suíte E2E pegou: qual cenário
+      quebrou, qual valor apareceu no lugar do esperado, e o que você mudou —
+      o jogo ou a asserção. Se mudou a asserção, explique por que o teste
+      estava errado e o jogo não.
+    criterios_avaliacao: |
+      A resposta deve (1) nomear um cenário específico e o sintoma concreto
+      (valor recebido x esperado, elemento que não apareceu, teste que passou
+      por motivo errado) e (2) dizer o que foi alterado em resposta, com o
+      raciocínio de por que a alteração foi daquele lado.
+
+      Uma resposta EXCELENTE reconhece que às vezes o errado é o teste, não o
+      código: fixar um número que o requisito não fixa é bug de teste.
+
+      Rejeitar: "passou de primeira" sem nenhum detalhe; narrar os passos do
+      enunciado; colar a saída do Playwright como se fosse explicação. Aceitar
+      linguagem informal e qualquer agente/harness usado para escrever o
+      código — o exercício não privilegia nenhum.
+    peso: 18
+  - texto: |
+      Por que o enunciado proíbe `waitForTimeout` e exige `page.clock`? O que
+      muda no seu caso concreto — no tempo da suíte e na confiança que você
+      pode depositar num teste verde?
+    criterios_avaliacao: |
+      A resposta deve mostrar que o aluno entendeu que `waitForTimeout` amarra
+      o teste ao tempo REAL: a suíte fica lenta e, pior, o verde passa a
+      depender da máquina estar rápida o bastante — o teste vira flaky e
+      verde deixa de significar correto. Com `page.clock`, o tempo é entrada
+      controlada do teste: adianta-se exatamente N ticks e o resultado é
+      determinístico.
+
+      Valorizar número concreto medido pelo aluno (tempo da suíte com e sem
+      relógio controlado, ou o caso em que o teste passou por tempo real sem
+      controlar nada).
+
+      Rejeitar: "é a boa prática recomendada" sem mecanismo; confundir
+      `page.clock` com `waitForSelector`/auto-waiting (o auto-waiting espera
+      elemento, não relógio).
+    peso: 12

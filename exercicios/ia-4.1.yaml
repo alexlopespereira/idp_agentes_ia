@@ -1,0 +1,311 @@
+exercicio: "ia-4.1"
+titulo: "Ler o mundo: um servidor MCP de recursos"
+turmas:
+  - IA-2026-01
+disponivel_a_partir_de: 2026-05-01T00:00:00-03:00
+prazo:
+  recomendado_ate: 2026-10-18T23:59:59-03:00
+
+# ---------------------------------------------------------------------------
+# Slide 40 da Aula 04. O menor servidor MCP possível: UMA primitiva, e a
+# primitiva menos glamourosa das três — `resource`, não `tool`. O exercício é
+# sobre a diferença entre "o modelo recebeu o texto" e "o modelo tem acesso à
+# fonte".
+#
+# O que a nota mede, em ordem de peso:
+#
+#   1. O servidor RODOU e o protocolo funcionou de ponta a ponta (19 pts). Não
+#      é leitura de código: o `cliente_teste.py` do aluno sobe o servidor por
+#      stdio, faz `list_resources`, faz `read_resource` e imprime um envelope
+#      JSON. O autograder lê esse envelope.
+#   2. O conteúdo que atravessou o protocolo é o MESMO `notas.md` entregue
+#      (6 pts, via cross-reference). É o que separa "meu cliente imprimiu um
+#      JSON bonito" de "o servidor leu o arquivo".
+#   3. O host resumiu as notas sem ninguém colar nada (8 pts, julgado por LLM
+#      contra o próprio `notas.md`).
+#
+# AGNÓSTICO DE HARNESS, NÃO DE LINGUAGEM: o transcript vale para Claude Code,
+# Claude Desktop, VS Code, Codex ou qualquer host que fale MCP, e as regex do
+# servidor aceitam o SDK Python v1 (`FastMCP`) e v2 (`MCPServer`). Mas a
+# evidência de execução é `python cliente_teste.py`, então o exercício é em
+# Python — as alternativas TypeScript nas regex são tolerância, não convite.
+# O que não é negociável é o envelope: ele é o contrato.
+#
+# Por que o envelope é conferido por REGEX e não por `evidence.shell.
+# http_json_match`: o servidor escreve log em stderr, e o CLI concatena stderr
+# no stdout antes de mandar. O JSON puro não sobrevive a isso; a regex sim.
+# Pelo mesmo motivo `python` e `python3` aparecem os dois, com `extract`
+# diferente: em Windows nativo existe `python`, em WSL/macOS costuma existir só
+# `python3`, e as primitivas de stdout aceitam lista de rótulos.
+# ---------------------------------------------------------------------------
+artefatos:
+  - role: notas
+    path: notas.md
+  - role: servidor
+    path: servidor_mcp.py
+  - role: cliente
+    path: cliente_teste.py
+  - role: envelope
+    path: evidencia-mcp.json
+  - role: transcript
+    path: transcript-mcp.md
+
+comandos_shell:
+  - cmd: ["gh", "--version"]
+    extract: gh_version
+  - cmd: ["gh", "auth", "status"]
+    extract: gh_auth
+  - cmd: ["gh", "repo", "view", "{owner_repo}", "--json", "visibility,name,isPrivate"]
+    extract: gh_repo_view
+  - cmd: ["python", "cliente_teste.py"]
+    extract: mcp_test
+    timeout: 120
+  - cmd: ["python3", "cliente_teste.py"]
+    extract: mcp_test3
+    timeout: 120
+
+# ---------------------------------------------------------------------------
+# Balanço: 70 em critérios + 30 nas perguntas = 100.
+#
+#   setup/repo ............. 8
+#   notas.md ............... 5
+#   servidor MCP ........... 14
+#   cliente de teste ....... 7
+#   execução real .......... 19
+#   evidência cruzada ...... 6
+#   transcript do host ..... 8
+#   higiene ................ 3
+# ---------------------------------------------------------------------------
+criterios:
+  # === Setup e repositório (8) ===
+  - id: repo_existe
+    peso: 2
+    check: github.repo.exists
+  - id: repo_publico
+    peso: 2
+    check: github.repo.public
+  - id: repo_nome_notas_mcp
+    peso: 1
+    check: github.repo.name_matches
+    args:
+      pattern: "notas-mcp"
+  - id: gh_autenticado
+    peso: 2
+    check: evidence.shell.gh_auth_ok
+  - id: gh_repo_view_ok
+    peso: 1
+    check: evidence.shell.gh_repo_view_ok
+
+  # === notas.md (5) ===
+  # Sem teto: o slide pede 5 a 10 linhas, mas reprovar quem anotou 14 seria
+  # medir obediência, não trabalho.
+  - id: notas_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: notas
+  - id: notas_5_linhas
+    peso: 3
+    check: evidence.artifacts.line_count_min
+    args:
+      role: notas
+      min: 5
+
+  # === O servidor MCP (14) ===
+  - id: servidor_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: servidor
+  - id: servidor_registra_resource
+    peso: 6
+    check: evidence.artifacts.content_matches
+    args:
+      role: servidor
+      # Aceita os dois SDKs Python (`@mcp.resource(...)` no FastMCP/MCPServer,
+      # `list_resources`/`read_resource` no servidor de baixo nível) e o
+      # TypeScript (`registerResource`, `ListResourcesRequestSchema`).
+      pattern: '@\w+\.resource\(|list_resources|read_resource|registerResource|ListResourcesRequestSchema'
+      flags: i
+      descricao: "o servidor registra um RESOURCE (não uma tool)"
+  - id: servidor_transporte_stdio
+    peso: 3
+    check: evidence.artifacts.content_matches
+    args:
+      role: servidor
+      pattern: 'stdio'
+      flags: i
+      descricao: "transporte stdio"
+  - id: servidor_le_notas
+    peso: 3
+    check: evidence.artifacts.content_matches
+    args:
+      role: servidor
+      # Quem embutir o texto das notas no código em vez de ler o arquivo perde
+      # aqui — e é justamente o erro que o exercício quer evitar.
+      pattern: 'notas\.md'
+      descricao: "o servidor lê notas.md do disco"
+
+  # === O cliente de teste (7) ===
+  - id: cliente_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: cliente
+  - id: cliente_usa_sdk_mcp
+    peso: 3
+    check: evidence.artifacts.content_matches
+    args:
+      role: cliente
+      pattern: 'ClientSession|stdio_client|StdioServerParameters|StdioClientTransport|@modelcontextprotocol/sdk'
+      flags: i
+      descricao: "o cliente fala MCP pelo SDK (não roda o servidor na unha)"
+  - id: cliente_grava_evidencia
+    peso: 2
+    check: evidence.artifacts.content_matches
+    args:
+      role: cliente
+      pattern: 'evidencia-mcp\.json'
+      descricao: "o cliente grava evidencia-mcp.json"
+
+  # === Execução real do protocolo (19) ===
+  # O miolo. Tudo aqui sai do stdout de `python cliente_teste.py` rodado na
+  # máquina do aluno, no diretório do repo.
+  - id: mcp_envelope_stdio
+    peso: 4
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [mcp_test, mcp_test3]
+      pattern: '"transporte"\s*:\s*"stdio"'
+      descricao: "envelope JSON com transporte stdio"
+  - id: mcp_lista_resources
+    peso: 6
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [mcp_test, mcp_test3]
+      # Pelo menos uma URI de resource, com esquema — `notas://minhas-notas`,
+      # `file:///...`, o que o aluno escolher.
+      pattern: '"resources"\s*:\s*\[\s*"[a-zA-Z][\w+.-]*://[^"]{3,}"'
+      descricao: "list_resources devolveu ao menos uma URI"
+  - id: mcp_leu_conteudo
+    peso: 5
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [mcp_test, mcp_test3]
+      # 3+ dígitos = pelo menos 100 caracteres lidos. Um resource vazio ou um
+      # read que falhou em silêncio não passa aqui.
+      pattern: '"conteudo_chars"\s*:\s*\d{3,}'
+      descricao: "read_resource devolveu conteúdo (>= 100 caracteres)"
+  - id: mcp_sem_traceback
+    peso: 4
+    check: evidence.shell.stdout_absent
+    args:
+      extract: [mcp_test, mcp_test3]
+      # Só o traceback do Python. "python3 not found in PATH" NÃO é falha: é a
+      # máquina que só tem um dos dois interpretadores.
+      pattern: 'Traceback \(most recent call last\)'
+      descricao: "o cliente rodou sem estourar exceção"
+
+  # === Evidência cruzada (6) ===
+  # O que prova que o conteúdo veio do arquivo, e não de uma string no código:
+  # a `primeira_linha` do envelope tem que existir dentro do `notas.md`
+  # entregue.
+  - id: evidencia_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: envelope
+  - id: evidencia_bate_com_notas
+    peso: 4
+    check: evidence.artifacts.cross_reference_required
+    args:
+      role_a: envelope
+      role_b: notas
+      pattern_in_a: '"primeira_linha"\s*:\s*"([^"]{10,})"'
+
+  # === Transcript do host (8) ===
+  - id: transcript_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: transcript
+  - id: transcript_qualidade
+    peso: 6
+    check: judge.artifacts.rubric
+    args:
+      roles: [transcript, notas]
+      rubrica: |
+        O primeiro bloco é o transcript de uma sessão em que o aluno conectou
+        o próprio servidor MCP a um host (Claude Code, Claude Desktop, VS Code,
+        Codex ou outro) e pediu "resuma minhas notas". O segundo bloco é o
+        `notas.md` que o servidor expõe.
+
+        A pergunta que o critério responde é uma só: o host leu as notas PELO
+        SERVIDOR, ou o aluno colou o texto no chat?
+
+        Aceitar qualquer host e qualquer formato de transcript (colagem da
+        tela, log estruturado, captura em texto). Não exigir nome de ferramenta
+        específico.
+      sub_criterios:
+        - "O transcript mostra o host acessando o recurso pelo MCP (listagem de resources, leitura da URI, menção explícita ao servidor) e não o aluno colando o conteúdo de notas.md no prompt"
+        - "A resposta do host é sobre o conteúdo REAL do notas.md do segundo bloco — cita itens que só existem lá, e não um resumo genérico que caberia em qualquer anotação"
+        - "O transcript identifica o servidor e a URI do recurso, de modo que outra pessoa saberia o que foi lido"
+
+  # === Higiene do repo (3) ===
+  - id: sem_segredos_versionados
+    peso: 3
+    check: github.repo.no_secret_files
+
+# ---------------------------------------------------------------------------
+# A reflexão é INTERATIVA, como nos ia-3.x: o aluno responde na CLI, na hora de
+# submeter. A primeira pergunta é a pergunta de fechamento do slide 40; a
+# segunda amarra o exercício ao artigo de segurança (slides 21-23).
+# ---------------------------------------------------------------------------
+perguntas:
+  - texto: |
+      Por que expor as suas notas como RESOURCE é diferente de colar o texto
+      no prompt? Responda nos três eixos do slide: escala, atualização e
+      auditoria.
+    criterios_avaliacao: |
+      A resposta deve tratar os TRÊS eixos com conteúdo próprio:
+
+      (1) ESCALA — colar não sobrevive a muitos arquivos nem a arquivos
+      grandes; o recurso é descoberto e lido sob demanda, e o mesmo servidor
+      atende qualquer host que fale o protocolo.
+      (2) ATUALIZAÇÃO — o texto colado congela no instante da colagem; o
+      recurso é lido no momento da chamada, então o host sempre vê a versão
+      atual do arquivo.
+      (3) AUDITORIA — a leitura pelo protocolo é um evento registrável (quem
+      leu, qual URI, quando); a colagem não deixa rastro nenhum do lado do
+      dono do dado.
+
+      Aceitar linguagem informal e exemplos do trabalho do aluno. Aceitar que
+      ele discorde de um dos eixos DESDE QUE argumente (ex.: "no meu caso a
+      auditoria não muda nada porque o log fica no host, não no servidor" é uma
+      ÓTIMA resposta — é a limitação real).
+
+      Rejeitar: definição de MCP copiada do slide sem ligar aos eixos; resposta
+      que só cobre um ou dois eixos; "é mais prático" sem dizer por quê.
+    peso: 18
+  - texto: |
+      Dos três ataques discutidos na aula — tool poisoning, rug pull e
+      typosquatting — qual deles poderia atingir alguém que instalasse um
+      servidor como o seu, e que mitigação você adotaria no seu contexto de
+      trabalho?
+    criterios_avaliacao: |
+      A resposta deve (1) escolher pelo menos um dos três ataques e descrever
+      com palavras próprias o MECANISMO dele — não só o nome — e (2) propor uma
+      mitigação concreta e aplicável (allowlist de servers, revisar o diff a
+      cada update, permissão mínima por tool/resource, log auditável de cada
+      invocação, fixar versão).
+
+      É igualmente válido argumentar que um servidor só de RESOURCE tem
+      superfície menor que um de tools, desde que o aluno diga por quê e
+      reconheça o que sobra (o servidor ainda roda código local a cada leitura,
+      e um update posterior pode mudar o que ele devolve — rug pull).
+
+      Rejeitar: citar os três nomes sem explicar nenhum mecanismo; mitigação
+      genérica do tipo "ter cuidado ao instalar"; confundir rug pull com
+      typosquatting sem perceber a diferença (o primeiro é temporal, o segundo
+      é de nome).
+    peso: 12
