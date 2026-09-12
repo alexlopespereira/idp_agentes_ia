@@ -41,7 +41,7 @@ Você pode resubmeter quantas vezes quiser — **a maior nota conta**.
 
 ---
 
-## Exercício ia-4.1 — Ler o mundo: um servidor MCP de recursos
+## Exercício ia-4.1 — Ler o mundo: um servidor MCP de anotações pessoais
 
 O slide pede o **menor servidor MCP possível**: uma primitiva só, e a menos
 glamourosa das três — `resource`, não `tool`. Nada é executado em seu nome; o
@@ -56,7 +56,8 @@ recebeu o texto"* e *"o modelo tem acesso à fonte"*.
    da aula, do trabalho, do que for.
 2. **Implemente o servidor** que registra esse arquivo como *resource* (SDK
    Python ou TypeScript), com transporte **stdio**.
-3. **Conecte ao host** (Claude Code, Claude Desktop, VS Code, Codex…) e peça
+3. **Conecte ao host** (o slide pede Claude Desktop ou Claude Code; qualquer
+   host que fale MCP serve) e peça
    **"resuma minhas notas"** — sem colar o conteúdo no chat.
 
 ### O que você entrega
@@ -256,6 +257,7 @@ snake-e2e/
 ├── index.html               # o jogo inteiro: HTML + CSS + JS, um arquivo só
 ├── tests/
 │   └── snake.spec.js        # a suíte E2E — este nome exato
+├── evidencia-colisao.png     # o screenshot da colisão, gravado pela própria suíte
 ├── playwright.config.js     # o config do Playwright
 ├── package.json             # com @playwright/test em devDependencies
 ├── .gitignore               # opcional, se versionar: node_modules/, test-results/
@@ -291,6 +293,10 @@ O que o autograder confere no `index.html`: os elementos **`#score`** e
 
 ### Passo 3 — Os testes: controlar o tempo, não esperá-lo
 
+> O slide resume o exercício; **este arquivo é o contrato do autograder**.
+> `page.clock` continua obrigatório aqui, e `waitForTimeout` continua proibido
+> — valem 10 dos 16 pontos do bloco de testes.
+
 ```js
 test.beforeEach(async ({ page }) => {
   await page.clock.install();   // ANTES do goto: o setInterval nasce na carga
@@ -303,11 +309,37 @@ test('comer a maçã soma 1 no placar', async ({ page }) => {
 });
 ```
 
-Dois critérios carregam o peso do bloco (14 dos 20 pontos): **`page.clock`
+Dois critérios carregam o peso do bloco (10 dos 16 pontos): **`page.clock`
 presente** e **`.waitForTimeout(` ausente**. Dá para ter a suíte verde e perder
 os dois — verde por espera cega é exatamente o que o exercício quer eliminar.
 
-### Passo 4 — `E2E.md` e validação
+### Passo 4 — O screenshot da colisão
+
+O enunciado pede **um screenshot de evidência mostrando o teste da colisão
+exibindo o `#gameover`**. Ele não é um anexo tirado à mão: quem grava é a
+suíte, no cenário da colisão, logo depois de o fim de jogo aparecer.
+
+```js
+await page.clock.runFor(ticks(16));
+await expect(page.locator('#gameover')).toBeVisible();
+await page.screenshot({ path: EVIDENCIA });   // evidencia-colisao.png na raiz
+```
+
+Três detalhes que decidem os 4 pontos:
+
+- o arquivo se chama **`evidencia-colisao.png`** e fica na **raiz** da pasta —
+  não em `test-results/`, que é onde o Playwright joga anexo por padrão;
+- resolva o caminho a partir de `__dirname` (`path.join(__dirname, '..',
+  'evidencia-colisao.png')`), senão ele cai onde quer que a suíte tenha sido
+  chamada;
+- é **a suíte** que precisa conter a chamada (`page.screenshot(` ou
+  `toHaveScreenshot(`) — um print de tela colado na pasta passa em dois
+  critérios e perde o terceiro.
+
+Como o `autograde validar` roda a suíte **antes** de ler os artefatos, o PNG que
+chega ao corretor é sempre o da rodada que acabou de acontecer.
+
+### Passo 5 — `E2E.md` e validação
 
 De 5 linhas para cima, sobre **o ciclo até o verde**: qual cenário quebrou,
 qual valor apareceu no lugar do esperado, e o que você mudou — o jogo ou a
@@ -341,9 +373,12 @@ As duas perguntas da CLI valem 30 dos 100 pontos:
 | `jogo_setas` | 4 | as quatro setas tratadas |
 | `jogo_tick_automatico` | 4 | a cobra avança sozinha |
 | `teste_existe` | 2 | `tests/snake.spec.js` |
-| `teste_usa_clock` | 8 | ≥ 2 chamadas a `page.clock.` |
-| `teste_sem_wait_timeout` | 6 | nenhum `.waitForTimeout(` |
+| `teste_usa_clock` | 6 | ≥ 2 chamadas a `page.clock.` |
+| `teste_sem_wait_timeout` | 4 | nenhum `.waitForTimeout(` |
 | `teste_tres_cenarios` | 4 | ≥ 3 blocos `test(` |
+| `screenshot_existe` | 2 | `evidencia-colisao.png` na raiz |
+| `screenshot_e_png` | 1 | é um PNG de verdade, não um arquivo vazio |
+| `teste_gera_screenshot` | 1 | a suíte contém `page.screenshot(` |
 | `playwright_tres_verdes` | 12 | ≥ 3 testes passando |
 | `playwright_sem_falha` | 7 | nada `failed`, nada `flaky`, navegador instalado |
 | `reflexao_existe` | 2 | `E2E.md` na raiz |
@@ -380,6 +415,11 @@ uma primeira linha com aspas ou barra invertida, que o JSON escapa.
 cliente_teste.py` **no diretório de onde você chamou `autograde validar`**.
 Rode da raiz da pasta do exercício, e faça o seu cliente resolver o caminho do
 servidor relativo ao próprio arquivo (`Path(__file__).parent`), não ao cwd.
+
+**`screenshot_existe` zerado com o teste passando.** O Playwright grava
+anexos em `test-results/`; o autograder lê **`evidencia-colisao.png` na raiz da
+pasta**. Passe o caminho absoluto no `page.screenshot({ path: ... })`, montado a
+partir de `__dirname`.
 
 **`playwright_sem_falha` zerado com "browserType.launch".** Faltou
 `npx playwright install chromium`. O navegador não vem com o pacote.

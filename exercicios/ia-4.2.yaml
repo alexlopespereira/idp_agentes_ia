@@ -16,7 +16,7 @@ prazo:
 requer_repositorio: false
 
 # ---------------------------------------------------------------------------
-# Slide 41 da Aula 04. O jogo é o pretexto; o exercício é o VERIFICADOR.
+# Slide 42 da Aula 04. O jogo é o pretexto; o exercício é o VERIFICADOR.
 #
 # É a ponte entre dois pedaços da aula que parecem desconexos: o Playwright MCP
 # (slide 24) e os quatro mecanismos de test-time compute (slide 30). O ganho de
@@ -27,6 +27,18 @@ requer_repositorio: false
 # Daí os dois critérios que carregam o peso do bloco de testes: `page.clock`
 # presente (6) e `waitForTimeout` ausente (4). O aluno pode ter uma suíte verde
 # e mesmo assim perder os dois — verde por espera cega é o que se quer eliminar.
+# O slide deixou de escrever essa exigência (ele resume); o enunciado do
+# autograder (`Exercicios_Aula4.md`) continua escrevendo, e é ele o contrato.
+#
+# O SCREENSHOT da colisão (slide 42) é evidência de EXECUÇÃO, não um anexo: a
+# suíte o reescreve a cada rodada, e o `autograde validar` roda a suíte ANTES
+# de coletar os artefatos — o PNG que chega ao backend é sempre o da rodada
+# que acabou de acontecer. Por isso os 4 pontos se dividem em três: o arquivo
+# existe, ele é um PNG de verdade (assinatura no início do conteúdo) e a suíte
+# contém a chamada que o produz. Conteúdo binário chega ao backend decodificado
+# com `errors="replace"`, entao a assinatura do PNG sobrevive como texto:
+# o primeiro byte vira U+FFFD e as tres letras "PNG" seguidas do bloco
+# "IHDR" continuam la -- casa por regex, e nenhum juiz LLM olha esse artefato.
 #
 # Determinismo é problema de PROJETO DO JOGO, não do teste. Quem sorteia a
 # primeira maçã sem semente não consegue afirmar "4 ticks e o placar vira 1", e
@@ -43,6 +55,8 @@ artefatos:
     path: index.html
   - role: teste
     path: tests/snake.spec.js
+  - role: screenshot
+    path: evidencia-colisao.png
   - role: reflexao
     path: E2E.md
 
@@ -60,7 +74,8 @@ comandos_shell:
 #
 #   identidade (gh auth) ... 2
 #   o jogo ................ 20
-#   os testes ............. 20
+#   os testes ............. 16
+#   screenshot da colisão .. 4
 #   execução da suíte ..... 19
 #   reflexão (E2E.md) ...... 9
 # ---------------------------------------------------------------------------
@@ -122,14 +137,14 @@ criterios:
       pattern: 'setInterval|setTimeout|requestAnimationFrame'
       descricao: "a cobra avança sozinha a cada tick"
 
-  # === Os testes (20) ===
+  # === Os testes (16) ===
   - id: teste_existe
     peso: 2
     check: evidence.artifacts.exists
     args:
       role: teste
   - id: teste_usa_clock
-    peso: 8
+    peso: 6
     check: evidence.artifacts.content_matches
     args:
       role: teste
@@ -138,7 +153,7 @@ criterios:
       min: 2
       descricao: "o teste controla o relógio com page.clock"
   - id: teste_sem_wait_timeout
-    peso: 6
+    peso: 4
     check: evidence.artifacts.content_absent
     args:
       role: teste
@@ -157,6 +172,32 @@ criterios:
       flags: m
       min: 3
       descricao: "pelo menos 3 cenários de teste"
+
+  # === Screenshot da colisão (4) ===
+  # O slide 42 pede "um screenshot de evidência mostrando o teste da colisão
+  # exibindo gameover". Quem tira print da tela à mão passa nos dois primeiros;
+  # o terceiro é o que amarra o arquivo à SUÍTE, que é o que o enunciado pede.
+  - id: screenshot_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: screenshot
+  - id: screenshot_e_png
+    peso: 1
+    check: evidence.artifacts.content_matches
+    args:
+      role: screenshot
+      # Assinatura PNG no início do arquivo. O byte 0x89 não é UTF-8 válido e
+      # chega como U+FFFD, então a âncora útil é o que vem depois dele.
+      pattern: 'PNG[\s\S]{0,12}IHDR'
+      descricao: "o arquivo é um PNG de verdade"
+  - id: teste_gera_screenshot
+    peso: 1
+    check: evidence.artifacts.content_matches
+    args:
+      role: teste
+      pattern: 'page\.screenshot\s*\(|toHaveScreenshot\s*\('
+      descricao: "é a suíte que produz o screenshot"
 
   # === Execução da suíte (19) ===
   - id: playwright_tres_verdes
