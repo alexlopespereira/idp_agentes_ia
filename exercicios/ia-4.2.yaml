@@ -6,6 +6,15 @@ disponivel_a_partir_de: 2026-05-01T00:00:00-03:00
 prazo:
   recomendado_ate: 2026-10-18T23:59:59-03:00
 
+# SEM REPOSITORIO. Como no ia-3.2: o CLI nao le `remote.origin.url`, nao manda
+# `repo_url`, e o backend nao chama a API do GitHub. O diretorio de trabalho
+# basta -- nem precisa ser repo git. Quem quiser versionar continua podendo; o
+# autograder nao olha.
+# A amarra de identidade continua de pe: o login Google diz quem e o aluno e
+# `gh auth status` confere a conta GitHub contra o `github_username` do roster,
+# sem precisar que exista repositorio nenhum.
+requer_repositorio: false
+
 # ---------------------------------------------------------------------------
 # Slide 41 da Aula 04. O jogo é o pretexto; o exercício é o VERIFICADOR.
 #
@@ -42,8 +51,6 @@ comandos_shell:
     extract: gh_version
   - cmd: ["gh", "auth", "status"]
     extract: gh_auth
-  - cmd: ["gh", "repo", "view", "{owner_repo}", "--json", "visibility,name,isPrivate"]
-    extract: gh_repo_view
   - cmd: ["npm", "exec", "-y", "playwright", "--", "test", "--reporter=line"]
     extract: playwright
     timeout: 300
@@ -51,32 +58,20 @@ comandos_shell:
 # ---------------------------------------------------------------------------
 # Balanço: 70 em critérios + 30 nas perguntas = 100.
 #
-#   setup/repo ............. 8
+#   identidade (gh auth) ... 2
 #   o jogo ................ 20
-#   os testes ............. 16
-#   execução da suíte ..... 16
-#   reflexão (E2E.md) ...... 7
-#   higiene ................ 3
+#   os testes ............. 20
+#   execução da suíte ..... 19
+#   reflexão (E2E.md) ...... 9
 # ---------------------------------------------------------------------------
 criterios:
-  # === Setup e repositório (8) ===
-  - id: repo_existe
-    peso: 2
-    check: github.repo.exists
-  - id: repo_publico
-    peso: 2
-    check: github.repo.public
-  - id: repo_nome_snake_e2e
-    peso: 1
-    check: github.repo.name_matches
-    args:
-      pattern: "snake-e2e"
+  # === Identidade (2) ===
+  # Unico vinculo com o GitHub que sobrou, e ele NAO exige repositorio: `gh
+  # auth status` so diz QUEM esta logado, e `gh_auth_ok` compara esse usuario
+  # com o `github_username` do roster.
   - id: gh_autenticado
     peso: 2
     check: evidence.shell.gh_auth_ok
-  - id: gh_repo_view_ok
-    peso: 1
-    check: evidence.shell.gh_repo_view_ok
 
   # === O jogo (20) ===
   - id: jogo_existe
@@ -127,14 +122,14 @@ criterios:
       pattern: 'setInterval|setTimeout|requestAnimationFrame'
       descricao: "a cobra avança sozinha a cada tick"
 
-  # === Os testes (16) ===
+  # === Os testes (20) ===
   - id: teste_existe
     peso: 2
     check: evidence.artifacts.exists
     args:
       role: teste
   - id: teste_usa_clock
-    peso: 6
+    peso: 8
     check: evidence.artifacts.content_matches
     args:
       role: teste
@@ -143,7 +138,7 @@ criterios:
       min: 2
       descricao: "o teste controla o relógio com page.clock"
   - id: teste_sem_wait_timeout
-    peso: 4
+    peso: 6
     check: evidence.artifacts.content_absent
     args:
       role: teste
@@ -163,9 +158,9 @@ criterios:
       min: 3
       descricao: "pelo menos 3 cenários de teste"
 
-  # === Execução da suíte (16) ===
+  # === Execução da suíte (19) ===
   - id: playwright_tres_verdes
-    peso: 10
+    peso: 12
     check: evidence.shell.stdout_matches
     args:
       extract: playwright
@@ -173,7 +168,7 @@ criterios:
       pattern: '\b(?:[3-9]|\d{2,}) passed\b'
       descricao: "pelo menos 3 testes passando"
   - id: playwright_sem_falha
-    peso: 6
+    peso: 7
     check: evidence.shell.stdout_absent
     args:
       extract: playwright
@@ -183,7 +178,7 @@ criterios:
       pattern: '\b\d+ (?:failed|flaky)\b|browserType\.launch'
       descricao: "nenhum teste falhando, flaky ou navegador faltando"
 
-  # === Reflexão (7) ===
+  # === Reflexão (9) ===
   - id: reflexao_existe
     peso: 2
     check: evidence.artifacts.exists
@@ -196,7 +191,7 @@ criterios:
       role: reflexao
       min: 5
   - id: reflexao_qualidade
-    peso: 3
+    peso: 5
     check: judge.artifacts.rubric
     args:
       roles: [reflexao, teste]
@@ -211,12 +206,6 @@ criterios:
         - "Diz o que foi mudado em resposta a cada falha e onde: no jogo ou na asserção do teste"
         - "O relato é consistente com o arquivo de teste do segundo bloco — não descreve um teste que não existe ali"
 
-  # === Higiene do repo (3) ===
-  # `node_modules/` e `test-results/` no `.gitignore` também moram aqui, na
-  # prática: repo que versiona o mundo costuma versionar segredo junto.
-  - id: sem_segredos_versionados
-    peso: 3
-    check: github.repo.no_secret_files
 
 perguntas:
   - texto: |
