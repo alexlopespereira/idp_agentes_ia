@@ -1,5 +1,5 @@
 exercicio: "ia-4.1"
-titulo: "Ler o mundo: um servidor MCP de recursos"
+titulo: "Ler o mundo: um servidor MCP de anotações pessoais"
 turmas:
   - IA-2026-01
 disponivel_a_partir_de: 2026-05-01T00:00:00-03:00
@@ -16,7 +16,7 @@ prazo:
 requer_repositorio: false
 
 # ---------------------------------------------------------------------------
-# Slide 40 da Aula 04. O menor servidor MCP possível: UMA primitiva, e a
+# Slide 41 da Aula 04. O menor servidor MCP possível: UMA primitiva, e a
 # primitiva menos glamourosa das três — `resource`, não `tool`. O exercício é
 # sobre a diferença entre "o modelo recebeu o texto" e "o modelo tem acesso à
 # fonte".
