@@ -4,7 +4,7 @@ turmas:
   - IA-2026-01
 disponivel_a_partir_de: 2026-05-01T00:00:00-03:00
 prazo:
-  recomendado_ate: 2026-10-04T23:59:59-03:00
+  recomendado_ate: 2026-10-20T23:59:59-03:00
 
 # SEM REPOSITÓRIO. A dissertação não precisa estar versionada no GitHub para
 # ser corrigida: o CLI não lê `remote.origin.url`, não manda `repo_url`, e o
