@@ -150,6 +150,7 @@ Equivalente manual, item por item:
 - [ ] `gh auth status` mostra você logado no `github.com`
 - [ ] `autograde --version` retorna uma versão
 - [ ] `autograde whoami` mostra seu email institucional e turma corretos
+- [ ] `autograde perfil` mostra um `github_username` preenchido — não `(não cadastrado)`
 - [ ] (a partir do ia-1.3) um agente de codificação instalado e acessível no terminal
 
 Se algum item falhar, vá para a Parte 1 correspondente e configure antes de tentar qualquer exercício.
@@ -265,7 +266,49 @@ autograde login
 A CLI mostra um código tipo `ABCD-1234` e uma URL (`google.com/device`). Abra a URL **em qualquer aparelho** (celular conta), digite o código, autorize com seu email.
 
 
-### 1.6 Confirmar identidade
+### 1.6 Cadastrar seu usuário do GitHub
+
+```bash
+autograde perfil
+```
+
+**Este passo não é opcional.** O roster guarda o seu `github_username`, e é com ele que
+o autograder confirma que o repositório mandado para avaliação é **seu**. Enquanto essa
+célula estiver vazia, todo exercício que pede repositório recusa a submissão com
+`403 repo_owner_mismatch` — um erro que não diz "falta cadastrar" e custa caro descobrir
+sozinho.
+
+O comando começa mostrando o que está gravado hoje:
+
+```
+Seu cadastro no roster:
+  email  : ana.silva@aluno.idp.edu.br
+  nome   : Ana Silva
+  turma  : IA-2026-01
+  github : (não cadastrado)
+```
+
+Se aparecer `(não cadastrado)`, ele pergunta e grava:
+
+```
+Seu github_username está vazio — sem ele o autograder não
+consegue confirmar que o repositório do exercício é seu.
+Seu username do GitHub (sem @): anasilva
+Confirmar 'anasilva'? [s/N]: s
+Pronto: github=anasilva
+```
+
+Use o username **da mesma conta com que você fez `gh auth login`**. Se os dois não
+baterem, os critérios `gh_*` não pontuam. Confira com `gh auth status`.
+
+**Só dá para preencher uma vez.** Se o campo já estiver preenchido, a planilha recusa
+sobrescrever — é isso que impede um aluno cravar o username de outro. Se estiver errado,
+peça a correção ao professor dizendo qual é o username certo; pela CLI não sai.
+
+Num terminal não interativo (script, CI) o comando não pergunta nada e avisa para você
+rodar num terminal normal.
+
+### 1.7 Confirmar identidade
 
 ```bash
 autograde whoami
@@ -280,6 +323,12 @@ turma: IA-2026-01
 ```
 
 Se aparecer **`erro: email não está no roster`** → fale com o professor. Você não está na planilha da turma; o backend bloqueia qualquer submissão.
+
+Para reconferir o ambiente inteiro de uma vez — e não só a identidade — rode
+`autograde doctor`: ele repassa todos os itens do checklist, inclusive se o seu
+`github_username` está preenchido, e imprime o comando exato que conserta cada item que
+falhar. É o primeiro comando a rodar quando algo der errado, antes de procurar o
+professor.
 
 ---
 
@@ -641,6 +690,8 @@ A pergunta de reflexão pede que você explique o papel do `gh pr create` e do `
 | `autograde validar <id> --auto-submit` | Pula o prompt |
 | `autograde notas` | Lista suas notas por exercício (melhor nota + nº de tentativas) |
 | `autograde whoami` | Email autenticado + turma |
+| `autograde perfil` | Mostra seu cadastro no roster e grava o `github_username` se estiver vazio |
+| `autograde doctor` | Diagnostica o ambiente inteiro e diz o comando que conserta cada falha |
 | `autograde login` | Re-autenticar (se token expirou) |
 | `autograde --version` | Versão + plataforma |
 
