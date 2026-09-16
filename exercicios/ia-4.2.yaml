@@ -4,7 +4,7 @@ turmas:
   - IA-2026-01
 disponivel_a_partir_de: 2026-05-01T00:00:00-03:00
 prazo:
-  recomendado_ate: 2026-10-18T23:59:59-03:00
+  recomendado_ate: 2026-10-20T23:59:59-03:00
 
 # SEM REPOSITORIO. Como no ia-3.2: o CLI nao le `remote.origin.url`, nao manda
 # `repo_url`, e o backend nao chama a API do GitHub. O diretorio de trabalho
