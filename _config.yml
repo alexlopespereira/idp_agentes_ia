@@ -1,0 +1,16 @@
+title: IDP - Agentes de IA
+description: Materiais do curso, tutoriais e enunciados dos exercícios
+theme: jekyll-theme-cayman
+show_downloads: false
+plugins:
+  - jekyll-relative-links
+  - jekyll-seo-tag
+relative_links:
+  enabled: true
+  collections: true
+include:
+  - README.md
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - vendor
