@@ -1,0 +1,365 @@
+exercicio: "ia-4.3"
+titulo: "Um repositório de artefatos para o seu agente"
+turmas:
+  - IA-2026-01
+disponivel_a_partir_de: 2026-05-01T00:00:00-03:00
+prazo:
+  recomendado_ate: 2026-10-20T23:59:59-03:00
+
+# ---------------------------------------------------------------------------
+# `requer_repositorio: false` NUM EXERCÍCIO QUE É SOBRE UM REPOSITÓRIO.
+# Parece contradição e não é — é a única configuração que funciona aqui.
+#
+# O repositório do ia-4.3 é PRIVADO por exigência do enunciado (restrição 1 do
+# prompt). `requer_repositorio: true` faria o backend chamar
+# `get_github_client().collect_evidence(repo_url)`, que num repo privado do
+# aluno responde 404 e vira `502 github_unavailable` — a submissão inteira
+# falharia, e a mensagem de erro mandaria o aluno tornar o repo PÚBLICO, que é
+# exatamente o oposto do que o exercício ensina.
+#
+# A saída é medir o repositório de onde ele pode ser medido: a máquina do
+# aluno. O `gh` dele enxerga o próprio repo privado, e o `git` dele enxerga a
+# árvore versionada. Por isso os dois comandos abaixo rodam SEM o placeholder
+# `{owner_repo}` — `gh repo view` e `git ls-files` sem argumento leem o
+# repositório do diretório corrente, que é onde o aluno chama
+# `autograde validar`. Nenhum critério `github.*` aparece neste arquivo, então
+# `_reject_repo_dependencies` não tem do que reclamar.
+#
+# Consequência assumida: a evidência do repositório é auto-reportada, como já
+# é o `gh auth status` dos outros exercícios. O objetivo é feedback honesto,
+# não prova criptográfica.
+# ---------------------------------------------------------------------------
+requer_repositorio: false
+
+# ---------------------------------------------------------------------------
+# Slide 46 da Aula 04. O exercício tem três metades — e a primeira não produz
+# arquivo nenhum:
+#
+#   1. A ENTREVISTA. O aluno cola o prompt (prompts/prompt-repo-artefatos-
+#      agentes.md) e o agente o entrevista sobre a arquitetura ANTES de
+#      escrever qualquer coisa. O prompt não diz a linguagem do script nem o
+#      gerenciador de pacotes: quem decide isso é o agente, olhando a máquina,
+#      e tem que defender a escolha. É por isso que o autograder não procura
+#      `install.ps1`: procura *um* script de instalação versionado, com o nome
+#      que o par aluno+agente tiver escolhido.
+#   2. O REPOSITÓRIO. Privado, com o arquivo de instruções globais, skills,
+#      hooks e o script — e instalado por `git clone` + UM script.
+#   3. A PROVA DE QUE O SCRIPT SE COMPORTA. Idempotência e `--uninstall` não
+#      se verificam lendo código: verificam-se rodando duas vezes e olhando a
+#      segunda. Por isso o peso maior do bloco de evidência está num juiz LLM
+#      lendo a saída bruta das três execuções, e não numa regex.
+#
+# O que o exercício NÃO mede, de propósito: se o script é bonito, se a
+# arquitetura de pastas é a que o professor faria, se o harness é Claude Code
+# ou Codex. Mede se a decisão foi do ALUNO (as duas divergências registradas),
+# se o repositório existe e é privado, e se o script faz o que promete.
+#
+# AGNÓSTICO DE HARNESS E DE SISTEMA OPERACIONAL. Nenhum critério pressupõe
+# `~/.claude` nem `~/.agents`, nem PowerShell, nem bash. Os três nomes de
+# arquivo que o autograder fixa — README.md, ENTREVISTA.md e
+# evidencia-instalacao.txt — são do exercício, não do harness.
+# ---------------------------------------------------------------------------
+artefatos:
+  - role: readme
+    path: README.md
+  - role: entrevista
+    path: ENTREVISTA.md
+  - role: evidencia
+    path: evidencia-instalacao.txt
+
+comandos_shell:
+  - cmd: ["gh", "--version"]
+    extract: gh_version
+  - cmd: ["gh", "auth", "status"]
+    extract: gh_auth
+  # Sem `{owner_repo}`: dentro do clone, `gh repo view` resolve o repositório
+  # pelo remote do diretório corrente — e o `gh` do aluno lê o repo privado
+  # DELE, que é o ponto. `gh_repo_view_ok` não serve aqui porque aquele
+  # primitive reprova tudo que não for `visibility: PUBLIC`.
+  - cmd: ["gh", "repo", "view", "--json", "name,visibility,isPrivate"]
+    extract: repo_view
+    timeout: 60
+  # A árvore VERSIONADA, não o working tree: `git ls-files` só lista o que foi
+  # commitado. Arquivo certo esquecido fora do commit não conta — e é assim
+  # que se pretende, porque o entregável é um repositório que outra máquina vai
+  # clonar.
+  - cmd: ["git", "ls-files"]
+    extract: tree
+    timeout: 60
+
+# ---------------------------------------------------------------------------
+# Balanço: 70 em critérios + 30 nas perguntas = 100.
+#
+#   identidade .............. 2
+#   repositório privado .... 11
+#   árvore versionada ...... 15
+#   evidência de execução .. 20
+#   registro da entrevista . 18
+#   README .................. 4
+# ---------------------------------------------------------------------------
+criterios:
+  # === Identidade (2) ===
+  - id: gh_autenticado
+    peso: 2
+    check: evidence.shell.gh_auth_ok
+
+  # === O repositório existe e é PRIVADO (11) ===
+  # O peso está no `privado`, não no `existe`: criar repositório é o passo
+  # barato: criar PRIVADO é a restrição 1 do prompt, e é a que o aluno é
+  # tentado a afrouxar quando o autograder reclama de alguma coisa.
+  - id: repo_existe
+    peso: 3
+    check: evidence.shell.stdout_matches
+    args:
+      extract: repo_view
+      pattern: '"name"\s*:\s*"[^"]{2,}"'
+      descricao: "gh repo view devolveu um repositório no diretório corrente"
+  - id: repo_privado
+    peso: 8
+    check: evidence.shell.stdout_matches
+    args:
+      extract: repo_view
+      # Os dois campos do mesmo JSON. Qualquer um dos dois basta — versões
+      # diferentes do `gh` já trocaram a grafia, e reprovar por isso seria
+      # medir a versão da ferramenta.
+      pattern: '"visibility"\s*:\s*"PRIVATE"|"isPrivate"\s*:\s*true'
+      descricao: "o repositório é privado"
+
+  # === A árvore versionada (15) ===
+  # Tudo abaixo sai de `git ls-files`. É a forma de conferir arquitetura sem
+  # impor arquitetura: o autograder pergunta "existe um script de instalação?",
+  # não "existe install.ps1 na raiz?".
+  - id: instrucoes_globais_versionadas
+    peso: 3
+    check: evidence.shell.stdout_matches
+    args:
+      extract: tree
+      # CLAUDE.md ou AGENTS.md, na raiz ou dentro de um diretório qualquer.
+      pattern: '(?:^|/)(?:CLAUDE|AGENTS)\.md\s*$'
+      flags: m
+      descricao: "o arquivo de instruções globais do harness está versionado"
+  - id: script_instalacao
+    peso: 3
+    check: evidence.shell.stdout_matches
+    args:
+      extract: tree
+      # Deliberadamente largo: o prompt deixou a linguagem do script para o
+      # agente decidir na máquina do aluno, então .ps1, .sh, .py, .js, .cmd ou
+      # sem extensão nenhuma valem igual. O que se exige é que exista um
+      # caminho versionado com `install` no nome.
+      # A extensão, quando existe, não pode ser de documento: `INSTALL.md` é
+      # instrução de instalação, não script de instalação.
+      pattern: '(?:^|/)[\w-]*install[\w-]*(?:\.(?!md\b|txt\b|rst\b)[\w-]{1,8})*\s*$'
+      flags: im
+      descricao: "há um script de instalação versionado"
+  - id: skill_versionada
+    peso: 3
+    check: evidence.shell.stdout_matches
+    args:
+      extract: tree
+      pattern: 'SKILL\.md\s*$'
+      flags: im
+      descricao: "pelo menos uma skill versionada (SKILL.md)"
+  - id: dois_hooks
+    peso: 3
+    check: evidence.shell.stdout_matches
+    args:
+      extract: tree
+      # O enunciado fixa o contrato: os dois hooks são arquivos versionados
+      # com `hook` no caminho. Hook declarado só como string dentro de um
+      # fragmento de settings não é artefato que ensina formato — e é
+      # justamente o que a restrição 9 do prompt pede que exista.
+      pattern: 'hook'
+      flags: i
+      min: 2
+      descricao: "dois hooks versionados (PreToolUse e PostToolUse)"
+  - id: sem_segredos
+    peso: 3
+    check: evidence.shell.stdout_absent
+    args:
+      extract: tree
+      # Restrição 2 do prompt. `.env.example` e `.env.sample` são convenção de
+      # documentação e não disparam — o que dispara é o arquivo que costuma
+      # carregar segredo de verdade.
+      pattern: '(?:^|/)(?:\.env(?!\.(?:example|sample|template))[\w.-]*|\.?credentials\.json|id_rsa|id_ed25519|[\w.-]*\.(?:pem|p12|pfx|key)|\.npmrc)\s*$'
+      flags: im
+      descricao: "nenhum arquivo com cara de segredo foi versionado"
+
+  # === A evidência de execução (20) ===
+  # O miolo. Idempotência não se lê no código: se lê na SEGUNDA execução.
+  - id: evidencia_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: evidencia
+  - id: evidencia_tres_execucoes
+    peso: 5
+    check: evidence.artifacts.content_matches
+    args:
+      role: evidencia
+      # O contrato do arquivo: cada um dos três blocos começa com a linha de
+      # comando que o gerou, prefixada por `$ ` (ou pelo prompt do PowerShell).
+      # É o equivalente, aqui, ao envelope JSON do ia-4.1.
+      pattern: '^\s*(?:\$|PS[^>\n]*>)\s*\S'
+      flags: m
+      min: 3
+      descricao: "três execuções registradas, cada uma com a sua linha de comando"
+  - id: evidencia_uninstall
+    peso: 4
+    check: evidence.artifacts.content_matches
+    args:
+      role: evidencia
+      pattern: '--uninstall'
+      descricao: "a terceira execução é o --uninstall"
+  - id: evidencia_idempotente
+    peso: 9
+    check: judge.artifacts.rubric
+    args:
+      roles: [evidencia, readme]
+      rubrica: |
+        O primeiro bloco é a saída bruta de três execuções seguidas do script
+        de instalação de um repositório de artefatos de agente: o script, o
+        script de novo, e o script com `--uninstall`. O segundo bloco é o
+        README do mesmo repositório, que descreve o que o script faz.
+
+        A pergunta que o critério responde: a SEGUNDA execução prova que o
+        script é idempotente, e a TERCEIRA prova que o `--uninstall` restaura?
+
+        Não exigir formato de log específico, nem cores, nem nome de script.
+        Aceitar qualquer sistema operacional e qualquer linguagem de script.
+      sub_criterios:
+        - "A segunda execução mostra explicitamente que nada mudou — mensagens como 'já instalado', 'sem alterações', 'link já aponta para cá', nenhum backup novo criado, nenhuma entrada duplicada no arquivo de configuração"
+        - "A terceira execução é o --uninstall e mostra o que foi restaurado: o caminho do backup, o arquivo que voltou, o link que foi removido"
+        - "A saída tem cara de execução real — caminhos concretos da máquina, timestamps, nomes de arquivo — e não de um resumo escrito à mão depois"
+        - "O que a saída mostra é coerente com o que o README diz que o script faz"
+
+  # === O registro da entrevista (18) ===
+  # É o que separa este exercício de 'mandei o agente criar um repositório'.
+  - id: entrevista_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: entrevista
+  - id: entrevista_tamanho
+    peso: 2
+    check: evidence.artifacts.line_count_min
+    args:
+      role: entrevista
+      min: 20
+  - id: entrevista_qualidade
+    peso: 7
+    check: judge.artifacts.rubric
+    args:
+      role: entrevista
+      rubrica: |
+        Este é o registro de uma entrevista em que um agente de IA (Claude Code
+        ou Codex, conduzido por uma skill de entrevista) perguntou ao aluno
+        como desenhar um repositório de artefatos de agente ANTES de escrever
+        qualquer arquivo.
+
+        Avalie as RESPOSTAS do aluno e a forma da entrevista, não a beleza do
+        Markdown.
+      sub_criterios:
+        - "É mesmo uma entrevista: perguntas do agente com respostas do aluno abaixo, e não um relatório do que o agente fez"
+        - "As perguntas vieram com opções concretas e uma recomendação do agente — não só 'o que você prefere?'"
+        - "As respostas são decisões com conteúdo, não 'tanto faz', 'você decide', 'ok', 'concordo'"
+        - "As decisões são específicas desta máquina e deste aluno (sistema operacional, o que já existe instalado, quais regras globais ele quer impor) e não caberiam em qualquer outro aluno"
+        - "A decisão sobre o SCRIPT aparece: qual linguagem/mecanismo o agente propôs, por quê, e o que ele disse que essa escolha não entrega"
+  - id: entrevista_duas_divergencias
+    peso: 7
+    check: judge.artifacts.rubric
+    args:
+      role: entrevista
+      rubrica: |
+        O enunciado exige que o aluno aponte DUAS decisões em que ele
+        contrariou a recomendação do agente, e diga por quê.
+
+        Score:
+        - 1.0: duas (ou mais) divergências explícitas, cada uma dizendo o que o
+          agente recomendou, o que o aluno escolheu no lugar e a razão — e a
+          razão é técnica ou de contexto de trabalho, não 'preferência
+          pessoal' solta
+        - 0.5: uma divergência bem descrita, ou duas descritas vagamente (dá
+          para ver que houve discordância, mas não o que o agente havia
+          recomendado ou por que o aluno mudou)
+        - 0.0: nenhuma divergência — o registro mostra o aluno concordando com
+          tudo, ou só diz 'discordei em dois pontos' sem dizer quais
+
+  # === O README (4) ===
+  - id: readme_existe
+    peso: 1
+    check: evidence.artifacts.exists
+    args:
+      role: readme
+  - id: readme_qualidade
+    peso: 3
+    check: judge.artifacts.rubric
+    args:
+      role: readme
+      rubrica: |
+        Este é o README de um repositório privado de artefatos de agente de IA,
+        escrito em português do Brasil.
+      sub_criterios:
+        - "Diz como instalar em dois passos — clone e UM script — com o comando literal, e como desinstalar"
+        - "Declara honestamente o limite do caminho escolhido: se não há versão pinada nem rollback, diz que aquilo é automação de instalação e NÃO reprodutibilidade"
+        - "Não expõe segredo, token nem caminho com credencial"
+
+# ---------------------------------------------------------------------------
+# As duas perguntas são respondidas na CLI, na hora de submeter. A primeira é
+# a pergunta de fechamento do slide 46 — e é a armadilha que o exercício
+# inteiro existe para ensinar. A segunda cobra o que a evidência mostra: o
+# aluno sabe o que o próprio script faz na segunda execução?
+# ---------------------------------------------------------------------------
+perguntas:
+  - texto: |
+      Por que o arquivo de settings do harness (settings.json do Claude Code,
+      config do Codex) não pode ser tratado como um dotfile qualquer e
+      symlinkado para o repositório?
+    criterios_avaliacao: |
+      A resposta precisa chegar ao MECANISMO, não só ao conselho. O que se
+      espera, com palavras do aluno:
+
+      (1) o arquivo de settings é estado COMPARTILHADO — quem escreve nele não
+      é só o usuário, é também o próprio harness, em runtime (ele grava
+      preferência, plugin habilitado, estado de sessão);
+      (2) essa escrita costuma ser feita por arquivo temporário + rename, e o
+      rename SUBSTITUI o symlink por um arquivo comum — o link morre em
+      silêncio, e a partir dali o repositório e a máquina divergem sem ninguém
+      ser avisado;
+      (3) daí a saída ser merge idempotente (ou geração do arquivo inteiro por
+      um gerador declarativo) em vez de link: o repositório é dono do
+      FRAGMENTO dele, não do arquivo.
+
+      Aceitar respostas que cheguem lá por outro caminho, desde que expliquem
+      por que o link não sobrevive: conflito com o que o harness escreve,
+      perda de configuração local, o arquivo virar cópia sem aviso. Aceitar
+      também quem diga que no caso dele o link até funcionaria, DESDE QUE
+      identifique o risco e diga o que mudaria se o harness reescrevesse o
+      arquivo.
+
+      Rejeitar: "porque é arriscado" ou "boa prática" sem mecanismo; confundir
+      com permissão de arquivo; resposta que só repete o enunciado.
+    peso: 18
+  - texto: |
+      O seu script rodou duas vezes seguidas sem efeito colateral. O que ele
+      verifica antes de escrever, para que a segunda execução não faça nada? E
+      o que exatamente o `--uninstall` restaura — e o que ele NÃO consegue
+      restaurar?
+    criterios_avaliacao: |
+      A resposta deve (1) descrever o mecanismo concreto de idempotência do
+      script do aluno — comparar conteúdo, checar se o link já aponta para o
+      destino certo, procurar um marcador/bloco já inserido, comparar hash,
+      testar se a chave já existe no JSON — e não apenas afirmar "ele é
+      idempotente"; e (2) dizer o que o `--uninstall` devolve (qual backup, de
+      qual arquivo, restaurado para onde) E reconhecer pelo menos um limite
+      real: pacotes instalados que não são desinstalados, edições que o aluno
+      fez depois da instalação, backup de uma execução anterior que foi
+      sobrescrito, estado que o harness gravou no meio do caminho.
+
+      Aceitar qualquer linguagem de script e qualquer sistema operacional.
+
+      Rejeitar: "o script é idempotente porque eu testei"; descrição do que o
+      script instala em vez de como ele evita reinstalar; nenhum limite
+      reconhecido no `--uninstall` (não existe uninstall perfeito, e dizer que
+      existe é a resposta errada).
+    peso: 12

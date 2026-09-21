@@ -1,21 +1,25 @@
-# Exercícios da Aula 4 — ia-4.1 e ia-4.2
+# Exercícios da Aula 4 — ia-4.1, ia-4.2 e ia-4.3
 
-Dois laboratórios sobre **dar mãos, pernas e olhos a um agente** — e sobre
+Três laboratórios sobre **dar mãos, pernas e olhos a um agente** — e sobre
 conferir o que ele fez:
 
 - **ia-4.1** — o menor **servidor MCP** possível: ele expõe um arquivo seu como
   *resource*, e o host resume as suas notas sem você colar nada no chat.
 - **ia-4.2** — um **jogo 2D** e um **teste E2E com Playwright** que controla o
   relógio em vez de esperá-lo.
+- **ia-4.3** — um **repositório privado de artefatos** que governa o seu agente,
+  instalado por `git clone` + **um** script idempotente — e desenhado numa
+  entrevista em que quem decide a arquitetura é você.
 
-**Prazo dos dois: 18/10.**
+**Prazo dos três: 18/10.**
 
-**Nenhum dos dois exige repositório.** Não é preciso criar nada no GitHub, nem
-sequer rodar `git init`: uma pasta comum na sua máquina basta. Quem preferir
-versionar continua podendo — o autograder não olha. Os dois também são
-**agnósticos de harness**: Claude Code, Codex, opencode, pi ou Amp, nenhum
-critério pergunta qual você usou. Nenhum deles precisa de `npx skills add`
-desta vez.
+**O ia-4.1 e o ia-4.2 não exigem repositório.** Não é preciso criar nada no
+GitHub, nem sequer rodar `git init`: uma pasta comum na sua máquina basta. Quem
+preferir versionar continua podendo — o autograder não olha. **O ia-4.3 é o
+contrário**: o repositório *é* o entregável, e ele tem que ser **privado**. Os
+três são **agnósticos de harness**: Claude Code, Codex, opencode, pi ou Amp,
+nenhum critério pergunta qual você usou. Nenhum deles precisa de
+`npx skills add` desta vez.
 
 > A amarra de identidade continua de pé: o login Google diz quem você é e
 > `gh auth status` confere a sua conta do GitHub contra o `github_username` do
@@ -32,12 +36,16 @@ cd <diretório do exercício>
 autograde validar ia-4.1     # mostra o boletim e pergunta se quer submeter
 ```
 
+No ia-4.3, "o diretório do exercício" é o **clone do seu repositório de
+artefatos** — é de lá que o `gh` e o `git` enxergam o repositório privado.
+
 Você pode resubmeter quantas vezes quiser — **a maior nota conta**.
 
-> ⚠️ **Rode o `autograde validar` fora do terminal do agente.** Nos dois
+> ⚠️ **Rode o `autograde validar` fora do terminal do agente.** Nos três
 > exercícios a CLI executa comandos de verdade na sua máquina (o seu cliente
-> MCP, a sua suíte Playwright) e manda a saída como evidência. Terminal de
-> agente costuma mexer em PATH e em variáveis de ambiente.
+> MCP, a sua suíte Playwright, o seu `gh` e o seu `git`) e manda a saída como
+> evidência. Terminal de agente costuma mexer em PATH e em variáveis de
+> ambiente.
 
 ---
 
@@ -390,6 +398,181 @@ As duas perguntas da CLI valem 30 dos 100 pontos:
 
 ---
 
+## Exercício ia-4.3 — Um repositório de artefatos para o seu agente
+
+Nos dois exercícios anteriores você deu ao agente uma fonte de dados e um
+verificador. Neste você trata do terceiro lado: **o que o agente leva consigo em
+toda sessão, em qualquer projeto** — as instruções globais, as skills, os hooks,
+os scripts. Hoje isso mora espalhado dentro de `~/.claude` ou `~/.agents`, não é
+versionado, não vai junto para a próxima máquina e ninguém sabe dizer o que
+mudou desde a semana passada.
+
+O entregável é um **repositório GitHub privado** que concentre esses artefatos e
+que se instale em dois passos: `git clone` e **um** script.
+
+**A parte que vale mais não produz arquivo nenhum.** Antes de qualquer código,
+você cola o prompt de apoio e o agente **entrevista você** sobre a arquitetura:
+como organizar as pastas, o que é artefato e o que é gerador, o que migra do seu
+setup de hoje e o que fica de fora. O prompt não diz em que linguagem escrever o
+script nem como declarar os pacotes — quem decide isso é o **seu** agente,
+olhando a **sua** máquina, e ele tem que defender a escolha. Se o agente propõe e
+você só assina embaixo, o exercício não aconteceu: a entrega exige **duas
+decisões em que você contrariou a recomendação dele**, com o motivo.
+
+### A tarefa, em três etapas
+
+1. **Prepare e entreviste.** Instale a skill de entrevista (`/grill-me` no
+   Claude Code; uma skill de entrevista em `~/.agents/skills/` no Codex),
+   confira `gh auth status`, e cole **na íntegra** a variante do seu harness em
+   [`prompts/prompt-repo-artefatos-agentes.md`](../prompts/prompt-repo-artefatos-agentes.md).
+   **Não deixe o agente escrever nenhum arquivo antes de vocês fecharem o
+   desenho.**
+2. **Construa o repositório.** Privado, com no mínimo: o arquivo de instruções
+   globais do harness, skills, **exatamente dois** hooks (um `PreToolUse` que
+   bloqueia escrita num caminho proibido, um `PostToolUse` que formata ou linta
+   depois de uma edição) e o script de instalação — idempotente, com backup por
+   timestamp e `--uninstall`.
+3. **Prove que o script se comporta.** Rode-o **duas vezes seguidas** e depois
+   com `--uninstall`, e guarde a saída bruta das três execuções.
+
+### O que você entrega
+
+O **clone do seu repositório privado**, na sua máquina. É de dentro dele que
+você roda `autograde validar ia-4.3`:
+
+```
+<seu-repo>/
+├── README.md                  # em pt-BR: como instalar, como desinstalar, e o limite do caminho
+├── CLAUDE.md                  # ou AGENTS.md — as instruções globais do harness
+├── ENTREVISTA.md              # o registro da entrevista + as duas divergências
+├── evidencia-instalacao.txt   # a saída bruta das três execuções
+├── install.<o que você escolher>   # o script único
+├── hooks/…                    # os dois hooks, como arquivos versionados
+└── skills/<nome>/SKILL.md     # pelo menos uma skill
+```
+
+> **Só conta o que está commitado.** O autograder lê a árvore com `git ls-files`,
+> que não enxerga arquivo fora do commit. Faça `git add`/`git commit`/`git push`
+> **antes** de validar.
+
+O que é livre e o que é fixo:
+
+| livre — você e o seu agente decidem | fixo — é o contrato do autograder |
+|---|---|
+| a linguagem do script e o mecanismo de instalação | o nome do script tem **`install`** nele (em inglês), e a extensão não é `.md`/`.txt`/`.rst` |
+| como declarar os pacotes (ou não declarar) | as instruções globais se chamam **`CLAUDE.md`** ou **`AGENTS.md`**, com essas maiúsculas |
+| a organização das pastas e o nome das skills | pelo menos um **`SKILL.md`** versionado |
+| o harness (Claude Code ou Codex) e o SO | os dois hooks são **arquivos** versionados, com `hook` no caminho |
+| o conteúdo das regras globais | `README.md`, `ENTREVISTA.md` e `evidencia-instalacao.txt`, com esses nomes exatos |
+
+### Passo 1 — A entrevista, e o registro dela
+
+Salve o registro em **`ENTREVISTA.md`**: cada pergunta que o agente fez, a
+recomendação que veio junto e a sua resposta. No fim, uma seção com as **duas
+decisões em que você contrariou a recomendação** — o que ele recomendou, o que
+você escolheu, e o **porquê**. "Preferência pessoal" não é porquê; "não quero
+versionar skill de terceiro que eu não controlo" é.
+
+Um juiz LLM lê esse arquivo e responde a duas perguntas separadas: *isto foi uma
+entrevista ou um relatório?* e *as duas divergências existem e estão
+justificadas?* São 14 dos 100 pontos.
+
+### Passo 2 — O repositório privado
+
+```bash
+gh repo create <nome> --private --source=. --push
+gh repo view --json name,visibility,isPrivate     # "isPrivate": true
+```
+
+**Privado de verdade — e por isso o autograder não olha pelo GitHub.** O backend
+não enxerga repositório privado de aluno (a API responde 404), então a evidência
+do repositório vem da **sua** máquina: o `gh` e o `git` que rodam no seu
+terminal, de dentro do clone, é que dizem que ele existe, que é privado e o que
+há na árvore. Deixar o repositório público para "facilitar" perde 8 pontos e
+contraria a restrição 1 do prompt.
+
+**Nenhum segredo entra.** Repositório privado é clonado para outras máquinas,
+entra em backup e vira público com um clique. O autograder reprova a árvore que
+contiver `.env`, `credentials.json`, `id_rsa`, `*.pem`, `*.key`, `.npmrc` e
+afins — `.env.example` não conta.
+
+### Passo 3 — `evidencia-instalacao.txt`
+
+Idempotência não se verifica lendo o script: verifica-se **rodando duas vezes e
+olhando a segunda**. O arquivo tem três blocos, nesta ordem, cada um precedido
+pela linha de comando que o gerou — prefixada por `$ ` ou pelo prompt do
+PowerShell (`PS C:\…>`):
+
+```
+$ ./install.sh
+[install] backup em ~/.claude/backups/2026-10-14T21-03-11
+... 4 arquivo(s) alterado(s)
+
+$ ./install.sh
+[install] nada a salvar: nenhum arquivo sera alterado, backup nao criado
+... 0 arquivo(s) alterado(s)
+
+$ ./install.sh --uninstall
+[uninstall] settings.json restaurado do backup
+...
+```
+
+É saída **bruta**, copiada do terminal — não um resumo escrito depois. O juiz
+LLM lê esse arquivo junto com o seu README e procura três coisas: a segunda
+execução dizendo explicitamente que nada mudou, a terceira mostrando **o que**
+foi restaurado, e coerência com o que o README promete. São 9 pontos, o maior
+critério isolado do exercício.
+
+### Passo 4 — Valide e responda as duas perguntas
+
+```bash
+cd <clone do seu repositório>
+autograde validar ia-4.3
+```
+
+Não há arquivo de reflexão: as duas perguntas são feitas na CLI, na hora de
+submeter, e valem 30 dos 100 pontos:
+
+1. Por que o arquivo de settings do harness **não pode ser tratado como um
+   dotfile qualquer**, symlinkado para o repositório. (É a pergunta de
+   fechamento do slide — e a armadilha que o exercício existe para ensinar.)
+2. O que o seu script verifica antes de escrever, para que a segunda execução
+   não faça nada; e o que o `--uninstall` restaura — **e o que ele não consegue
+   restaurar**.
+
+A CLI roda, na sua máquina: `gh --version`, `gh auth status`,
+`gh repo view --json name,visibility,isPrivate` e `git ls-files`. Os dois
+últimos **sem nome de repositório**: eles leem o repo do diretório corrente, que
+é por isso que você precisa validar de dentro do clone.
+
+### Critérios do ia-4.3
+
+| Critério | Peso | O que precisa |
+|---|---:|---|
+| `gh_autenticado` | 2 | `gh auth status` OK, na conta do roster |
+| `repo_existe` | 3 | `gh repo view` devolve um repositório no diretório corrente |
+| `repo_privado` | 8 | `"isPrivate": true` / `"visibility": "PRIVATE"` |
+| `instrucoes_globais_versionadas` | 3 | `CLAUDE.md` ou `AGENTS.md` commitado |
+| `script_instalacao` | 3 | um script versionado com `install` no nome |
+| `skill_versionada` | 3 | pelo menos um `SKILL.md` |
+| `dois_hooks` | 3 | dois arquivos versionados com `hook` no caminho |
+| `sem_segredos` | 3 | nenhum arquivo com cara de segredo na árvore |
+| `evidencia_existe` | 2 | `evidencia-instalacao.txt` na raiz |
+| `evidencia_tres_execucoes` | 5 | três blocos, cada um com a sua linha de comando |
+| `evidencia_uninstall` | 4 | a terceira execução é o `--uninstall` |
+| `evidencia_idempotente` | 9 | a 2ª execução não mudou nada e a 3ª restaurou (LLM avalia) |
+| `entrevista_existe` | 2 | `ENTREVISTA.md` na raiz |
+| `entrevista_tamanho` | 2 | ≥ 20 linhas não vazias |
+| `entrevista_qualidade` | 7 | foi entrevista, com decisões suas (LLM avalia) |
+| `entrevista_duas_divergencias` | 7 | as duas divergências, com motivo (LLM avalia) |
+| `readme_existe` | 1 | `README.md` na raiz |
+| `readme_qualidade` | 3 | instalação em dois passos, desinstalação e o limite declarado |
+| pergunta 1 | 18 | settings x dotfile — respondida na CLI |
+| pergunta 2 | 12 | idempotência e o que o `--uninstall` não desfaz — na CLI |
+| **Total** | **100** | |
+
+---
+
 ## Quando der errado
 
 **`ModuleNotFoundError: No module named 'mcp.server.fastmcp'`.** Você está no
@@ -444,6 +627,33 @@ ele mesmo depois de mais N ticks.
 **Critério de arquivo zerado com o arquivo no lugar.** O caminho bate
 exatamente, incluindo maiúsculas: `E2E.md`, não `e2e.md`; `tests/snake.spec.js`,
 não `tests/snake.spec.ts`; `evidencia-mcp.json` na raiz.
+
+**`repo_existe` e `repo_privado` zerados com o repositório criado.** Os dois
+comandos rodam **sem nome de repositório**: eles leem o remote do diretório
+corrente. Validar de fora do clone (ou de uma pasta que não é repo git) zera os
+11 pontos com o repositório intacto no GitHub. `cd` para dentro do clone e
+confira com `gh repo view --json name,visibility,isPrivate`.
+
+**Critério de árvore zerado com o arquivo no lugar.** `git ls-files` lista só o
+que está **commitado**. Arquivo criado e não adicionado não existe para o
+autograder — e é o caso mais comum com o `evidencia-instalacao.txt`, que você
+gera por último. `git add -A && git commit && git push` antes de validar.
+
+**`dois_hooks` zerado com os dois hooks funcionando.** O autograder procura
+**dois caminhos versionados com `hook`** — arquivos. Hook declarado só como
+string de comando dentro do fragmento de settings funciona no harness e não
+passa aqui, de propósito: a restrição 9 do prompt pede dois hooks *como exemplos
+que ensinam o formato*, e um comando inline não ensina formato a quem clonar.
+
+**`script_instalacao` zerado com o script pronto.** Ou o nome está em português
+(`instalar.ps1`), ou o que existe é um `INSTALL.md` explicando como instalar à
+mão. O nome do arquivo precisa ter `install`, e a extensão não pode ser de
+documento — nomes de arquivo em inglês é regra do próprio prompt.
+
+**`evidencia_tres_execucoes` zerado com as três execuções no arquivo.** Faltou a
+linha de comando prefixada: cada bloco começa com `$ ` (ou com o prompt do
+PowerShell, `PS C:\…>`) seguido do comando. Sem esse prefixo o autograder não
+tem como separar um bloco do outro.
 
 **Os demais problemas** (403, 401, "Could not detect exercise from CWD",
 submissão atrasada) estão na [Parte 7 do tutorial da Aula 1](Exercicios_Aula1.md#parte-7--quando-der-errado).
