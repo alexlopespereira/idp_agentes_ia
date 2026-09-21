@@ -33,8 +33,6 @@ exercicios:
   ia-3.2:
   ia-4.1:
   ia-4.2:
-  # ia-4.3 entra aqui quando `ia-4.3.yaml` chegar na `main` — mesma regra da
-  # aula 5 abaixo.
-  # ia-4.3:
+  ia-4.3:
   # A aula 5 entra aqui quando `ia-5.1.yaml`/`ia-5.2.yaml` chegarem na `main`.
   # Listar antes disso matricularia a turma num exercicio que responde 404.
