@@ -1,0 +1,480 @@
+exercicio: "ia-5.2"
+titulo: "Uma atitude, medida em você: do indicador à intenção de implementação"
+turmas:
+  - IA-2026-01
+disponivel_a_partir_de: 2026-05-01T00:00:00-03:00
+prazo:
+  recomendado_ate: 2026-10-20T23:59:59-03:00
+
+# SEM REPOSITORIO. O objeto de aprendizagem aqui e o comportamento do aluno,
+# nao o codigo dele: nao ha o que versionar no GitHub. O CLI nao le
+# `remote.origin.url`, o backend nao chama a API do GitHub, e a identidade fica
+# no login Google + roster, com `gh auth status` amarrando a conta GitHub.
+requer_repositorio: false
+
+# ---------------------------------------------------------------------------
+# Slide 42 da Aula 05, lido junto com os slides 13-23.
+#
+# O slide 42 e uma linha: "utilize o Claude Code para investigar algum aspecto
+# do seu processo de trabalho relacionado a algumas das atitudes". Este YAML e
+# a versao operacional dela, e a operacionalizacao e o exercicio: transformar
+# uma atitude -- que ninguem observa diretamente -- num INDICADOR de
+# comportamento que se conta em evidencia de verdade.
+#
+# A cadeia dos slides 13-14 e a espinha:
+#     atitude -> comportamento observavel -> contagem -> intervencao
+# O aluno escolhe UMA das atitudes do slide 15 (curiosidade, ceticismo
+# calibrado, humildade epistemica, persistencia estrategica, orientacao para
+# aprendizagem, metacognicao), define o comportamento observavel que serve de
+# proxy, MEDE esse comportamento no proprio historico de sessoes com o agente,
+# e desenha uma intencao de implementacao ("se X, entao Y") -- a intervencao
+# que o slide 18 mostra rendendo d = 0,27 a 0,66, ao contrario do growth
+# mindset do slide 19, que rende d = 0,05 nos estudos melhores.
+#
+# O que a nota mede, em ordem de peso:
+#
+#   1. A OPERACIONALIZACAO (15 pts) -- `atitude.md`: a atitude escolhida, o
+#      indicador, a unidade de analise, a regra de contagem, o que conta como
+#      violacao, e os limites do indicador. Julgado CONTRA o corpus entregue:
+#      o juiz pergunta se aquele indicador e observavel naqueles trechos.
+#      Os tres marcadores epistemicos ([FACT]/[INFERENCE]/[ASSUMPTION]) valem
+#      1 ponto cada, por regex -- eles sao o habito que a aula quer instalar.
+#   2. A MEDICAO REAL (26 pts) -- `medir.py` le `historico.md`, conta, e grava
+#      `medicao.csv` + `evidencia-medicao.json`. A CLI roda o script no ato da
+#      validacao. E o desenho do ia-4.1 outra vez: quem prova que a medicao
+#      aconteceu e um script do aluno que a CLI re-executa.
+#   3. A EVIDENCIA CRUZADA (6 pts) -- o `trecho_exemplo` do envelope tem que
+#      existir DENTRO do `historico.md` entregue. E o que separa "meu script
+#      imprimiu numeros" de "meu script leu o meu historico".
+#   4. A INTERVENCAO (16 pts) -- `intervencao.md`: o "se X, entao Y", a
+#      variavel-resultado, como o efeito seria calculado, e a condicao de
+#      abandono. Julgada contra a medicao: a intervencao tem que atacar a
+#      violacao que foi medida, nao uma outra qualquer.
+#
+# POR QUE `historico.md` E UM ARQUIVO, E NAO UM CAMINHO PARA O HISTORICO DO
+# HARNESS: porque o exercicio e agnostico de harness. Claude Code guarda sessao
+# em `~/.claude/projects/**/*.jsonl`, Codex em outro lugar, quem usa a interface
+# web nao tem arquivo nenhum. Exigir um caminho especifico transformaria um
+# exercicio sobre comportamento num exercicio sobre a arvore de diretorios de
+# um produto. O aluno monta o corpus, redige o que precisa redigir, e o script
+# le o corpus.
+#
+# POR QUE REGEX NO ENVELOPE, e nao `http_json_match`: mesmo motivo do ia-4.1 --
+# o CLI concatena stderr no stdout antes de mandar, e qualquer aviso do Python
+# quebraria um `json.loads` da saida inteira.
+# ---------------------------------------------------------------------------
+artefatos:
+  - role: atitude
+    path: atitude.md
+  - role: historico
+    path: historico.md
+  - role: script
+    path: medir.py
+  - role: medicao
+    path: medicao.csv
+  - role: envelope
+    path: evidencia-medicao.json
+  - role: intervencao
+    path: intervencao.md
+
+comandos_shell:
+  - cmd: ["gh", "--version"]
+    extract: gh_version
+  - cmd: ["gh", "auth", "status"]
+    extract: gh_auth
+  - cmd: ["python", "medir.py"]
+    extract: med
+    timeout: 180
+  - cmd: ["python3", "medir.py"]
+    extract: med3
+    timeout: 180
+
+# ---------------------------------------------------------------------------
+# Balanco: 70 em criterios + 30 nas perguntas = 100.
+#
+#   identidade (gh auth) ....  2
+#   operacionalizacao ....... 15
+#   o corpus ................  5
+#   o script ................  7
+#   o CSV da medicao ........  8
+#   o envelope .............. 11
+#   evidencia cruzada .......  6
+#   a intervencao ........... 16
+# ---------------------------------------------------------------------------
+criterios:
+  # === Identidade (2) ===
+  - id: gh_autenticado
+    peso: 2
+    check: evidence.shell.gh_auth_ok
+
+  # === A operacionalizacao (15) ===
+  - id: atitude_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: atitude
+  - id: atitude_nomeia_atitude
+    peso: 2
+    check: evidence.artifacts.content_matches
+    args:
+      role: atitude
+      # Uma das seis do slide 15. Aceita a forma solta ("cetico", "persistir")
+      # de proposito -- exigir o rotulo exato mediria memoria de slide, nao
+      # escolha de atitude.
+      pattern: 'curiosidade|cetic|c[ée]tic|humildade|persist[êe]nc|orienta[çc][ãa]o\s+para\s+aprendiz|metacogni'
+      flags: i
+      descricao: "uma das atitudes do slide 15 está nomeada"
+  - id: atitude_marcador_fact
+    peso: 1
+    check: evidence.artifacts.content_matches
+    args:
+      role: atitude
+      pattern: '\[FACT\]'
+      descricao: "marcador [FACT] usado"
+  - id: atitude_marcador_inference
+    peso: 1
+    check: evidence.artifacts.content_matches
+    args:
+      role: atitude
+      pattern: '\[INFERENCE\]'
+      descricao: "marcador [INFERENCE] usado"
+  - id: atitude_marcador_assumption
+    peso: 1
+    check: evidence.artifacts.content_matches
+    args:
+      role: atitude
+      pattern: '\[ASSUMPTION\]'
+      descricao: "marcador [ASSUMPTION] usado"
+  - id: atitude_qualidade
+    peso: 8
+    check: judge.artifacts.rubric
+    args:
+      roles: [atitude, historico]
+      rubrica: |
+        O primeiro bloco é o `atitude.md`: o aluno escolheu uma atitude (das
+        seis da aula: curiosidade, ceticismo calibrado, humildade epistêmica,
+        persistência estratégica, orientação para aprendizagem, metacognição) e
+        a operacionalizou num indicador de COMPORTAMENTO observável. O segundo
+        bloco é o corpus — trechos das sessões de trabalho do próprio aluno com
+        um agente de código, de onde a medição sai.
+
+        A pergunta que este critério responde: esse indicador é contável NAQUELE
+        corpus, ou é uma definição bonita que ninguém consegue aplicar?
+
+        A atitude não é observável; o comportamento é. O exercício é a ponte
+        entre os dois, e a ponte tem que aguentar peso: outra pessoa, com o
+        mesmo corpus e a mesma regra, deveria chegar a uma contagem parecida.
+
+        Aceitar indicador simples — quanto mais simples, melhor, desde que
+        contável. Aceitar que o aluno declare o indicador imperfeito; declarar
+        o limite é o comportamento que a aula pede. Aceitar qualquer harness e
+        qualquer formato de trecho.
+        Um limite que o aluno declara sobre o proprio trabalho conta A
+        FAVOR, nunca contra: a aula pede honestidade epistemica, e a
+        limitacao confessada e a prova de que ela existe. Nao trate uma
+        ressalva do aluno como sub-criterio nao atendido.
+        Vale o mesmo, e com mais forca, para AUTOCORRECAO: se o aluno foi
+        verificar depois uma parte que havia marcado como suposicao e, por causa
+        do resultado, revisou uma criticidade ou uma conclusao, isso e
+        precisamente o comportamento que a aula pede — conte o sub-criterio como
+        ATENDIDO, e de forma exemplar. Julgue a versao FINAL do artefato, nunca a
+        intermediaria: nao desconte dizendo que "a classificacao inicial estava
+        errada" ou que "a informacao nao estava na avaliacao inicial" quando o
+        proprio artefato mostra a correcao, o que a motivou e o que ela muda.
+
+        Escala, para nao punir profundidade com nota media:
+        - 1.0: todos os sub-critérios estão atendidos de forma substantiva.
+          Um sub-critério que poderia ser mais profundo, mas que está lá e
+          está ancorado, conta como atendido — não desconte por isso.
+        - 0.75: todos os sub-critérios estão presentes e ancorados, mas um
+          deles fica no mínimo aceitável.
+        - 0.5: um ou dois sub-critérios estão AUSENTES, ou presentes apenas
+          como enunciado sem nada que os sustente.
+        - 0.0: o artefato não faz a tarefa, ou é cumprimento cosmético.
+
+        Teste obrigatorio antes de dar 0.5: nomeie o sub-criterio que esta
+        AUSENTE do artefato. Se voce nao consegue nomear nenhum — se a sua
+        ressalva e "poderia detalhar mais", "poderia ser mais explicito",
+        "poderia ser mais cauteloso" ou "nao esta tao desenvolvido quanto os
+        outros" —, entao nenhum sub-criterio esta ausente e a nota e 1.0 ou
+        0.75. Ausencia e ausencia; profundidade desigual nao e.
+      sub_criterios:
+        - "O indicador é um comportamento observável no corpus, não a atitude em si — dá para apontar o trecho e dizer 'aqui aconteceu' ou 'aqui não aconteceu'"
+        - "A regra de contagem está explícita: qual é a unidade (um episódio, uma sessão, uma tentativa), o que faz uma ocorrência começar e terminar, e o que conta como violação"
+        - "A regra é replicável — uma segunda pessoa aplicando-a ao mesmo corpus chegaria a um número próximo, porque a decisão não depende de interpretação livre"
+        - "Os marcadores [FACT]/[INFERENCE]/[ASSUMPTION] estão usados com sentido: o que tem trecho que prove é FACT, o que deriva de fatos nomeados é INFERENCE, o que foi adotado sem checar é ASSUMPTION — e não os três pendurados no texto como enfeite"
+        - "O texto declara pelo menos um limite concreto do indicador (o que ele deixa passar, o que ele conta a mais, onde o corpus é enviesado)"
+
+  # === O corpus (5) ===
+  - id: historico_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: historico
+  - id: historico_40_linhas
+    peso: 3
+    check: evidence.artifacts.line_count_min
+    args:
+      role: historico
+      # Sem teto: 40 linhas nao vazias e o piso para haver o que contar. Quem
+      # trouxer 400 nao deve perder ponto por trabalhar mais.
+      min: 40
+
+  # === O script (7) ===
+  - id: medir_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: script
+  - id: medir_le_historico
+    peso: 2
+    check: evidence.artifacts.content_matches
+    args:
+      role: script
+      # Quem contar "na mao" e digitar os numeros no CSV perde aqui -- e perde
+      # o exercicio junto, porque a contagem manual nao e replicavel.
+      pattern: 'historico\.md'
+      descricao: "o script lê historico.md do disco"
+  - id: medir_grava_csv
+    peso: 2
+    check: evidence.artifacts.content_matches
+    args:
+      role: script
+      pattern: 'medicao\.csv'
+      descricao: "o script grava medicao.csv"
+  - id: medir_grava_envelope
+    peso: 1
+    check: evidence.artifacts.content_matches
+    args:
+      role: script
+      pattern: 'evidencia-medicao\.json'
+      descricao: "o script grava evidencia-medicao.json"
+
+  # === O CSV da medicao (8) ===
+  - id: medicao_existe
+    peso: 1
+    check: evidence.artifacts.exists
+    args:
+      role: medicao
+  - id: medicao_colunas
+    peso: 3
+    check: evidence.artifacts.csv_columns
+    args:
+      role: medicao
+      # Sem `exact: true`: colunas extras do aluno sao bem-vindas.
+      columns: [episodio, fonte, indicador, valor, violacao, trecho]
+  - id: medicao_cinco_episodios
+    peso: 4
+    check: evidence.artifacts.csv_rows_min
+    args:
+      role: medicao
+      min: 5
+
+  # === O envelope (11) ===
+  - id: envelope_existe
+    peso: 1
+    check: evidence.artifacts.exists
+    args:
+      role: envelope
+  - id: envelope_indicador
+    peso: 2
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [med, med3]
+      pattern: '"indicador"\s*:\s*"[^"]{10,}"'
+      descricao: "o envelope declara o indicador medido"
+  - id: envelope_episodios
+    peso: 3
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [med, med3]
+      pattern: '"episodios"\s*:\s*(?:[5-9]|[1-9]\d+)'
+      descricao: "a medição cobriu >= 5 episódios"
+  - id: envelope_violacoes
+    peso: 2
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [med, med3]
+      # Zero violacao e um resultado legitimo: significa que o comportamento
+      # esta no lugar. O que nao pode e o campo nao existir.
+      pattern: '"violacoes"\s*:\s*\d+'
+      descricao: "o envelope publica a contagem de violações"
+  - id: medicao_sem_traceback
+    peso: 3
+    check: evidence.shell.stdout_absent
+    args:
+      extract: [med, med3]
+      pattern: 'Traceback \(most recent call last\)'
+      descricao: "o script rodou sem estourar exceção"
+
+  # === Evidencia cruzada (6) ===
+  # O que prova que a contagem saiu do corpus, e nao de uma string no codigo: o
+  # `trecho_exemplo` do envelope tem que existir dentro do `historico.md`
+  # entregue. Escolha um trecho sem aspas e sem barra invertida -- o JSON
+  # escapa esses caracteres e a comparacao falha por um detalhe bobo.
+  - id: trecho_bate_com_historico
+    peso: 6
+    check: evidence.artifacts.cross_reference_required
+    args:
+      role_a: envelope
+      role_b: historico
+      pattern_in_a: '"trecho_exemplo"\s*:\s*"([^"]{15,})"'
+
+  # === A intervencao (16) ===
+  - id: intervencao_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: intervencao
+  - id: intervencao_se_entao
+    peso: 3
+    check: evidence.artifacts.content_matches
+    args:
+      role: intervencao
+      # A forma da intencao de implementacao do slide 18: "se X, entao Y". A
+      # forma importa -- e ela que transforma uma boa intencao num gatilho.
+      pattern: '\bse\b[^.\n]{3,120}?\bent[ãa]o\b'
+      flags: i
+      descricao: "a intenção de implementação está na forma 'se X, então Y'"
+  - id: intervencao_desfecho
+    peso: 2
+    check: evidence.artifacts.content_matches
+    args:
+      role: intervencao
+      pattern: 'vari[áa]vel[- ]resultado|desfecho|d\s*de\s*Cohen|\bd\s*=|\bg\s*=|tamanho\s+de\s+efeito|grupo\s+de\s+controle|linha\s+de\s+base'
+      flags: i
+      descricao: "a variável-resultado / o efeito esperado está nomeado"
+  - id: intervencao_qualidade
+    peso: 9
+    check: judge.artifacts.rubric
+    args:
+      roles: [intervencao, medicao]
+      rubrica: |
+        O primeiro bloco é o `intervencao.md`: a intenção de implementação que
+        o aluno desenhou a partir do que mediu no próprio comportamento. O
+        segundo bloco é o `medicao.csv` — a medição, uma linha por episódio.
+
+        A pergunta que este critério responde: a intervenção ataca o que foi
+        medido, e o aluno saberia dizer se ela funcionou?
+
+        O padrão de comparação é o slide 18: intenções de implementação ("se X,
+        então Y") rendem d = 0,27 a 0,66 porque amarram um comportamento a um
+        gatilho identificável; growth mindset rende d = 0,05 porque não amarra
+        nada. Uma intervenção que é uma boa intenção ("vou ser mais cético")
+        está do lado errado dessa tabela, mesmo escrita em forma de "se/então".
+
+        Aceitar intervenção modesta — quanto mais estreita, mais crível.
+        Aceitar que o aluno espere efeito pequeno; esperar pouco com argumento
+        vale mais que prometer muito.
+        Um limite que o aluno declara sobre o proprio trabalho conta A
+        FAVOR, nunca contra: a aula pede honestidade epistemica, e a
+        limitacao confessada e a prova de que ela existe. Nao trate uma
+        ressalva do aluno como sub-criterio nao atendido.
+        Vale o mesmo, e com mais forca, para AUTOCORRECAO: se o aluno foi
+        verificar depois uma parte que havia marcado como suposicao e, por causa
+        do resultado, revisou uma criticidade ou uma conclusao, isso e
+        precisamente o comportamento que a aula pede — conte o sub-criterio como
+        ATENDIDO, e de forma exemplar. Julgue a versao FINAL do artefato, nunca a
+        intermediaria: nao desconte dizendo que "a classificacao inicial estava
+        errada" ou que "a informacao nao estava na avaliacao inicial" quando o
+        proprio artefato mostra a correcao, o que a motivou e o que ela muda.
+
+        Escala, para nao punir profundidade com nota media:
+        - 1.0: todos os sub-critérios estão atendidos de forma substantiva.
+          Um sub-critério que poderia ser mais profundo, mas que está lá e
+          está ancorado, conta como atendido — não desconte por isso.
+        - 0.75: todos os sub-critérios estão presentes e ancorados, mas um
+          deles fica no mínimo aceitável.
+        - 0.5: um ou dois sub-critérios estão AUSENTES, ou presentes apenas
+          como enunciado sem nada que os sustente.
+        - 0.0: o artefato não faz a tarefa, ou é cumprimento cosmético.
+
+        Teste obrigatorio antes de dar 0.5: nomeie o sub-criterio que esta
+        AUSENTE do artefato. Se voce nao consegue nomear nenhum — se a sua
+        ressalva e "poderia detalhar mais", "poderia ser mais explicito",
+        "poderia ser mais cauteloso" ou "nao esta tao desenvolvido quanto os
+        outros" —, entao nenhum sub-criterio esta ausente e a nota e 1.0 ou
+        0.75. Ausencia e ausencia; profundidade desigual nao e.
+      sub_criterios:
+        - "O gatilho (o X do 'se') é uma situação que o aluno reconhece no momento em que ela acontece, e que aparece nos episódios medidos — não uma condição vaga como 'quando eu estiver trabalhando'"
+        - "A ação (o Y do 'então') é um comportamento único e executável na hora, não um projeto nem uma resolução de ano novo"
+        - "A intervenção mira a violação que a medição encontrou — dá para traçar a linha do CSV até o gatilho escolhido"
+        - "Há uma variável-resultado nomeada e um jeito declarado de compará-la com a linha de base (o mesmo indicador medido de novo, quantos episódios, em quanto tempo)"
+        - "Há uma condição de abandono: o que o aluno veria que o faria concluir que a intervenção não funcionou, em vez de só continuar acreditando nela"
+
+# ---------------------------------------------------------------------------
+# A reflexao e INTERATIVA. A pergunta 1 cobra a distincao dos slides 13-14
+# (comportamento nao e atitude) e a honestidade sobre a inferencia que liga os
+# dois. A pergunta 2 cobra a leitura dos slides 18-21: tamanho de efeito, e por
+# que esperar menos do que se gostaria.
+# ---------------------------------------------------------------------------
+perguntas:
+  - texto: |
+      O seu indicador observa um COMPORTAMENTO, não a atitude. Explique o que
+      ele mede de fato, qual é a inferência que você faz do comportamento para
+      a atitude, e em que situação concreta essa inferência estaria errada — um
+      caso em que o comportamento aparece sem a atitude, ou a atitude sem o
+      comportamento.
+    criterios_avaliacao: |
+      A resposta precisa fazer TRÊS coisas:
+
+      (1) DIZER O QUE O INDICADOR MEDE, em termos do que está no corpus — "o
+      número de vezes que eu repeti a mesma abordagem depois de duas falhas" e
+      não "o meu nível de persistência estratégica". É a distinção dos slides 13-14:
+      comportamento é o que você faz de forma observável; atitude é a
+      predisposição que orienta a ação.
+
+      (2) EXPLICITAR A INFERÊNCIA — a ponte que o aluno atravessa quando diz
+      que aquela contagem informa algo sobre a atitude. A resposta boa nomeia a
+      ponte; a ruim finge que não há ponte.
+
+      (3) DAR UM CONTRAEXEMPLO CONCRETO, em pelo menos uma das duas direções:
+      comportamento presente sem a atitude (segui o ritual porque o time exige,
+      não porque sou cético) ou atitude presente sem o comportamento (revisei
+      a hipótese na cabeça e nada disso apareceu no transcript). O
+      contraexemplo precisa ser uma situação descritível, não a menção de que
+      "pode haver viés".
+
+      Aceitar que o aluno conclua que o indicador é fraco — se ele disser por
+      quê e o que mediria no lugar, é a melhor resposta possível. Aceitar
+      exemplos do trabalho, do mestrado, da vida.
+
+      Rejeitar: tratar o indicador como se fosse a atitude; "pode haver
+      limitações" sem nomear nenhuma; repetir a definição de atitude do slide
+      sem aplicá-la ao próprio indicador; contraexemplo genérico que serviria
+      para qualquer medição de qualquer coisa.
+    peso: 18
+  - texto: |
+      Slide 19: growth mindset rende d ≈ 0,05 nos estudos mais robustos;
+      intenções de implementação, d = 0,27 a 0,66. Que magnitude você espera da
+      SUA intervenção, e qual é a razão honesta para esperar MENOS do que você
+      gostaria?
+    criterios_avaliacao: |
+      A resposta precisa (1) arriscar uma magnitude e ancorá-la em algo, e (2)
+      nomear a razão pela qual a expectativa deve ser descontada. A segunda
+      parte é a que vale.
+
+      Razões legítimas de desconto, qualquer uma bem argumentada basta: n = 1 —
+      um d de meta-análise é diferença entre grupos, e o aluno não tem grupo de
+      controle; o desfecho é auto-observado, e quem mede é quem é medido
+      (o próprio ato de medir muda o comportamento); o indicador é proximal
+      (contagem de um comportamento) e o que interessa é distal (qualidade do
+      trabalho), e a distância entre os dois come efeito; o corpus é pequeno ou
+      enviesado; a adesão à intenção decai com o tempo e a medição pega o
+      período de novidade; a regra de contagem tem interpretação e o próprio
+      aluno é o juiz.
+
+      Também é válido argumentar que o efeito PODE ser maior que o da
+      meta-análise no caso dele, desde que diga por quê (intervenção desenhada
+      sobre uma violação medida, e não genérica) E reconheça o custo dessa
+      aposta.
+
+      Aceitar que o aluno diga que não dá para estimar magnitude com n = 1 e
+      proponha um critério qualitativo de sucesso — é uma resposta melhor que
+      um número inventado, desde que o critério seja verificável.
+
+      Rejeitar: citar os números do slide sem aplicá-los ("d de 0,27 a 0,66 é
+      um efeito pequeno a moderado") e parar aí; otimismo sem desconto ("tenho
+      certeza que vai funcionar"); confundir d com correlação; ignorar o
+      problema do n = 1 quando se propõe um d numérico.
+    peso: 12
