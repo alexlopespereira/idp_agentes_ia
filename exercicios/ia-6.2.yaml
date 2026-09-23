@@ -1,0 +1,430 @@
+exercicio: "ia-6.2"
+titulo: "Planejar a contribuição científica da dissertação com o Wayfinder"
+turmas:
+  - IA-2026-01
+disponivel_a_partir_de: 2026-05-01T00:00:00-03:00
+prazo:
+  recomendado_ate: 2026-10-20T23:59:59-03:00
+
+# ---------------------------------------------------------------------------
+# `requer_repositorio: false`, pelo mesmo motivo do ia-6.1: o repositório é o
+# fork do TemplateLatexIDP que o aluno fez no ia-6.1 (nome livre), e tudo é
+# medido de dentro do clone pelo `gh` do próprio aluno.
+#
+# Slides 35-40 da Aula 06. O aluno escreve `contexto-pesquisa.md` (o que já
+# está decidido na pesquisa + UMA pergunta de aprofundamento sobre impacto
+# científico), habilita Issues no fork e roda a skill `wayfinder` com esse
+# contexto. O Wayfinder cria no GitHub um MAPA (issue `wayfinder:map`) e
+# tickets filhos (`wayfinder:research`, `wayfinder:grilling`, ...), e o aluno
+# resolve pelo menos um de pesquisa (AFK: o agente investiga sozinho) e um de
+# grilling (HITL: o agente pergunta, o aluno responde).
+#
+# ONDE MORA A EVIDÊNCIA: nas issues do GitHub, não em arquivo. O coletor
+# abaixo (`python -c`, mesma lógica do verificador do ia-6.1) faz três coisas:
+#
+#   1. chama `gh issue list` e `gh api graphql` (sub-issues do mapa) com o
+#      `gh` autenticado do aluno — de dentro do clone, `{owner}`/`{repo}` são
+#      resolvidos pelo próprio gh a partir do remote;
+#   2. imprime um resumo compacto em JSON que os critérios determinísticos
+#      leem com regex (o stdout é truncado em 4 KB pelo CLI — o conteúdo das
+#      issues não cabe ali);
+#   3. grava `wayfinder-export.json` (UTF-8) com o mapa e os tickets — corpo e
+#      últimos comentários —, que o CLI coleta como ARTEFATO para os juízes.
+#      O CLI roda os comandos ANTES de ler os artefatos, então o export é
+#      sempre o da hora da validação: editar o arquivo à mão não adianta.
+#
+# Ticket RESOLVIDO = fechado e com um comentário de >= 300 caracteres (a
+# resolução que a skill escreve ao fechar). Fechar sem registrar não conta.
+#
+# Se o fork tem o remote `upstream` (o template original), rode antes
+# `gh repo set-default <seu-usuario>/<seu-fork>`: sem isso o gh pode ler as
+# issues do repositório errado.
+#
+# O coletor começa com a linha-marcador `# autograde:ia-6.2-coletor`, que o
+# `driver.py` do autograder usa para reconhecer o comando. Não remova.
+# ---------------------------------------------------------------------------
+requer_repositorio: false
+
+artefatos:
+  - role: contexto
+    path: contexto-pesquisa.md
+  - role: wayfinder
+    path: wayfinder-export.json
+
+comandos_shell:
+  - cmd: ["gh", "--version"]
+    extract: gh_version
+  - cmd: ["gh", "auth", "status"]
+    extract: gh_auth
+  - cmd: ["gh", "repo", "view", "--json", "name,isFork,parent,hasIssuesEnabled"]
+    extract: fork
+    timeout: 60
+  - cmd:
+      - python
+      - -c
+      - &coletor |
+        # autograde:ia-6.2-coletor
+        import json, re, shutil, subprocess
+        def gh(*a):
+            exe = shutil.which('gh')
+            if not exe:
+                return None
+            p = subprocess.run([exe, *a], capture_output=True, text=True, encoding='utf-8', errors='replace')
+            return p.stdout if p.returncode == 0 else None
+        r = {'gh_ok': False}
+        bruto = gh('issue', 'list', '--state', 'all', '--limit', '100', '--json', 'number,title,state,labels,body,comments,url')
+        issues = json.loads(bruto) if bruto else []
+        r['gh_ok'] = bruto is not None
+        def rot(i):
+            return [l['name'] for l in i.get('labels', [])]
+        def tipo(i):
+            t = [x.split(':', 1)[1] for x in rot(i) if x.startswith('wayfinder:')]
+            return t[0] if t else ''
+        mapas = [i for i in issues if tipo(i) == 'map']
+        tickets = [i for i in issues if tipo(i) in ('research', 'prototype', 'grilling', 'task')]
+        r['mapas'] = len(mapas)
+        r['tickets'] = len(tickets)
+        mapa = mapas[0] if mapas else {'number': 0, 'body': ''}
+        r['mapa_url'] = mapa.get('url', '')
+        filhos = []
+        q = 'query($owner:String!,$name:String!,$n:Int!){repository(owner:$owner,name:$name){issue(number:$n){subIssues(first:50){nodes{number}}}}}'
+        if mapas:
+            out = gh('api', 'graphql', '-F', 'owner={owner}', '-F', 'name={repo}', '-F', 'n=%d' % mapa['number'], '-f', 'query=' + q)
+            try:
+                filhos = [x['number'] for x in json.loads(out)['data']['repository']['issue']['subIssues']['nodes']]
+            except (TypeError, ValueError, KeyError):
+                filhos = []
+            if not filhos:
+                filhos = [i['number'] for i in tickets if re.search(r'Part of #%d\b' % mapa['number'], i.get('body') or '')]
+        r['tickets_filhos_do_mapa'] = len([i for i in tickets if i['number'] in filhos])
+        def resolvido(i):
+            return i['state'] == 'CLOSED' and any(len(c.get('body') or '') >= 300 for c in i.get('comments', []))
+        for t in ('research', 'grilling'):
+            r[t] = len([i for i in tickets if tipo(i) == t])
+            r[t + '_resolvidos'] = len([i for i in tickets if tipo(i) == t and resolvido(i)])
+        corpo = mapa.get('body') or ''
+        def secao(nomes):
+            m = re.search(r'^#{1,4}\s*(?:' + nomes + r')\b[^\n]*\n(.*?)(?=^#{1,4}\s|\Z)', corpo, flags=re.M | re.S | re.I)
+            return re.sub(r'<!--.*?-->', '', m.group(1), flags=re.S).strip() if m else None
+        dest = secao('Destination|Destino')
+        dec = secao('Decisions so far|Decisões')
+        fog = secao('Not yet specified|Ainda não especificad')
+        r['mapa_destino'] = bool(dest)
+        r['mapa_nao_especificado'] = bool(fog)
+        fechados = {i['number'] for i in tickets if i['state'] == 'CLOSED'}
+        citados = {int(n) for n in re.findall(r'(?:/issues/|#)(\d+)', dec or '')}
+        r['decisoes_apontam_tickets_fechados'] = len(citados & fechados)
+        exp = []
+        for i in mapas[:1] + tickets:
+            exp.append({'numero': i['number'], 'tipo': tipo(i), 'estado': i['state'], 'titulo': i['title'], 'url': i.get('url'), 'corpo': (i.get('body') or '')[:4000], 'comentarios': [(c.get('body') or '')[:6000] for c in i.get('comments', [])][-3:]})
+        open('wayfinder-export.json', 'w', encoding='utf-8').write(json.dumps(exp, ensure_ascii=False, indent=1)[:30000])
+        print(json.dumps(r, ensure_ascii=True, indent=1))
+    extract: wf
+    timeout: 180
+  - cmd: ["python3", "-c", *coletor]
+    extract: wf3
+    timeout: 180
+
+# ---------------------------------------------------------------------------
+# Balanço: 70 em critérios + 30 nas perguntas = 100.
+#
+#   identidade e repositório ... 4
+#   contexto-pesquisa.md ....... 9
+#   o mapa ..................... 20
+#   os tickets ................. 22
+#   as resoluções (juízes) ..... 15
+# ---------------------------------------------------------------------------
+criterios:
+  # === Identidade e repositório (4) ===
+  - id: gh_autenticado
+    peso: 2
+    check: evidence.shell.gh_auth_ok
+  - id: issues_habilitadas
+    peso: 2
+    check: evidence.shell.stdout_matches
+    args:
+      extract: fork
+      # Fork nasce com Issues DESLIGADAS; o Wayfinder não tem onde escrever.
+      pattern: '"hasIssuesEnabled"\s*:\s*true'
+      descricao: "Issues habilitadas no fork (Settings → Features → Issues)"
+
+  # === contexto-pesquisa.md (9) ===
+  - id: contexto_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: contexto
+  - id: contexto_tem_pergunta
+    peso: 2
+    check: evidence.artifacts.content_matches
+    args:
+      role: contexto
+      pattern: '\?\**\s*$'
+      flags: m
+      descricao: "contexto-pesquisa.md termina alguma linha com uma pergunta"
+  - id: contexto_bom
+    peso: 5
+    check: judge.artifacts.rubric
+    args:
+      role: contexto
+      rubrica: |
+        O arquivo é o contexto que o aluno entrega ao Wayfinder para planejar a
+        contribuição científica da própria dissertação. O exercício pede: o
+        estado atual da pesquisa (o que JÁ está decidido) e UMA pergunta de
+        aprofundamento focada em impacto científico.
+
+        Escala, para nao punir profundidade com nota media:
+        - 1.0: todos os sub-critérios estão atendidos de forma substantiva.
+          Um sub-critério que poderia ser mais profundo, mas que está lá e
+          está ancorado, conta como atendido — não desconte por isso.
+        - 0.75: todos os sub-critérios estão presentes e ancorados, mas um
+          deles fica no mínimo aceitável.
+        - 0.5: um ou dois sub-critérios estão AUSENTES, ou presentes apenas
+          como enunciado sem nada que os sustente.
+        - 0.0: arquivo vazio, genérico ("minha pesquisa é sobre IA"), ou sem
+          pergunta.
+        Teste obrigatorio antes de dar menos que 1.0: nomeie o sub-criterio
+        que esta AUSENTE ou no minimo aceitavel. Se a sua ressalva e "poderia
+        detalhar mais", "poderia ser mais explicito" ou "poderia ser mais
+        especifico" —, entao nenhum sub-criterio esta ausente e a nota e 1.0.
+        Ausencia e ausencia; profundidade desigual nao e.
+      sub_criterios:
+        - "Diz qual é o tema e o problema da pesquisa, com recorte (população, objeto, contexto)"
+        - "Separa o que já está decidido do que ainda está em aberto"
+        - "Traz UMA pergunta de aprofundamento sobre impacto ou contribuição científica — não uma pergunta operacional ('que ferramenta usar?') nem uma lista de perguntas"
+        - "A pergunta é respondível por uma decisão (tem alternativas reconhecíveis), e não é retórica"
+
+  # === O mapa (20) ===
+  - id: mapa_criado
+    peso: 4
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [wf, wf3]
+      pattern: '"mapas": [1-9]'
+      descricao: "existe uma issue de mapa (rótulo wayfinder:map)"
+  - id: mapa_tem_destino
+    peso: 2
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [wf, wf3]
+      pattern: '"mapa_destino": true'
+      descricao: "o mapa tem a seção Destination/Destino preenchida"
+  - id: mapa_tem_nao_especificado
+    peso: 3
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [wf, wf3]
+      pattern: '"mapa_nao_especificado": true'
+      descricao: "o mapa tem a seção Not yet specified/Ainda não especificado preenchida"
+  - id: mapa_registra_decisoes
+    peso: 5
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [wf, wf3]
+      # A seção "Decisions so far" aponta (#N) para os tickets FECHADOS que
+      # tomaram cada decisão — é o que faz do mapa um registro, e não um plano.
+      pattern: '"decisoes_apontam_tickets_fechados": (?:[2-9]|\d{2,})'
+      descricao: "Decisions so far aponta para pelo menos 2 tickets fechados"
+  - id: mapa_bom
+    peso: 6
+    check: judge.artifacts.rubric
+    args:
+      role: wayfinder
+      rubrica: |
+        O artefato é um JSON exportado das issues do GitHub criadas pela skill
+        Wayfinder. O primeiro elemento (tipo "map") é o MAPA: o documento vivo
+        que diz para onde a pesquisa vai (Destination), o que já foi decidido
+        (Decisions so far, com links para os tickets que decidiram), o que
+        ainda está nebuloso (Not yet specified) e o que ficou de fora (Out of
+        scope). Os demais elementos são os tickets. Avalie SÓ o mapa.
+
+        No Wayfinder o Destino é o ESTADO FINAL DO MAPA, não o resultado final
+        da pesquisa: é comum e correto que ele seja "uma decisão travada sobre
+        X, pronta para Y". O que importa é que o X seja específico desta
+        pesquisa.
+
+        Escala, para nao punir profundidade com nota media:
+        - 1.0: todos os sub-critérios estão atendidos de forma substantiva.
+          Um sub-critério que poderia ser mais profundo, mas que está lá e
+          está ancorado, conta como atendido — não desconte por isso.
+        - 0.75: todos os sub-critérios estão presentes e ancorados, mas um
+          deles fica no mínimo aceitável.
+        - 0.5: um ou dois sub-critérios estão AUSENTES, ou presentes apenas
+          como enunciado sem nada que os sustente.
+        - 0.0: mapa vazio, só com os títulos das seções, ou que não trata da
+          contribuição científica de uma pesquisa.
+        Teste obrigatorio antes de dar menos que 1.0: nomeie o sub-criterio
+        que esta AUSENTE ou no minimo aceitavel. Se a sua ressalva e "poderia
+        detalhar mais", "poderia ser mais explicito" ou "poderia ser mais
+        especifico" —, entao nenhum sub-criterio esta ausente e a nota e 1.0.
+        Ausencia e ausencia; profundidade desigual nao e.
+      sub_criterios:
+        - "O Destino diz o que estará decidido ou pronto quando o mapa terminar, e é específico desta pesquisa (não 'escrever a dissertação' nem 'pesquisar o tema')"
+        - "Cada decisão registrada é uma frase afirmativa que se sustenta sozinha, com link para o ticket que a tomou"
+        - "O Não especificado lista incertezas reais da pesquisa, e não tarefas já claras"
+        - "O mapa foi atualizado depois das resoluções: as decisões refletem o que os tickets fechados concluíram"
+
+  # === Os tickets (22) ===
+  - id: tem_ticket_de_pesquisa
+    peso: 5
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [wf, wf3]
+      pattern: '"research": [1-9]'
+      descricao: "pelo menos um ticket wayfinder:research"
+  - id: tem_ticket_de_grilling
+    peso: 5
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [wf, wf3]
+      pattern: '"grilling": [1-9]'
+      descricao: "pelo menos um ticket wayfinder:grilling"
+  - id: tickets_ligados_ao_mapa
+    peso: 4
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [wf, wf3]
+      # Sub-issue do GitHub; na falta, "Part of #N" no corpo do ticket.
+      pattern: '"tickets_filhos_do_mapa": (?:[2-9]|\d{2,})'
+      descricao: "pelo menos 2 tickets são filhos (sub-issues) do mapa"
+  - id: pesquisa_resolvida
+    peso: 4
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [wf, wf3]
+      pattern: '"research_resolvidos": [1-9]'
+      descricao: "um ticket de pesquisa fechado com a resolução registrada em comentário"
+  - id: grilling_resolvido
+    peso: 4
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [wf, wf3]
+      pattern: '"grilling_resolvidos": [1-9]'
+      descricao: "um ticket de grilling fechado com a resolução registrada em comentário"
+
+  # === As resoluções (15) ===
+  - id: resolucao_de_pesquisa
+    peso: 7
+    check: judge.artifacts.rubric
+    args:
+      role: wayfinder
+      rubrica: |
+        O artefato é um JSON exportado das issues do GitHub criadas pela skill
+        Wayfinder. Cada elemento tem o campo "tipo". Avalie SÓ os de
+        "tipo": "research" com "estado": "CLOSED" — ignore o mapa e os de tipo
+        grilling, que são avaliados em outro critério. O corpo diz a pergunta,
+        e os comentários trazem a resolução que o agente escreveu ao fechar.
+        Um ticket de pesquisa é AFK: o agente investiga sozinho e volta com
+        uma resposta.
+
+        Se houver mais de um, avalie o MELHOR.
+
+        Escala, para nao punir profundidade com nota media:
+        - 1.0: todos os sub-critérios estão atendidos de forma substantiva.
+          Um sub-critério que poderia ser mais profundo, mas que está lá e
+          está ancorado, conta como atendido — não desconte por isso.
+        - 0.75: todos os sub-critérios estão presentes e ancorados, mas um
+          deles fica no mínimo aceitável.
+        - 0.5: um ou dois sub-critérios estão AUSENTES, ou presentes apenas
+          como enunciado sem nada que os sustente.
+        - 0.0: nenhum research fechado com resolução, ou resolução que só
+          repete a pergunta.
+        Teste obrigatorio antes de dar menos que 1.0: nomeie o sub-criterio
+        que esta AUSENTE ou no minimo aceitavel. Se a sua ressalva e "poderia
+        detalhar mais", "poderia ser mais explicito" ou "poderia ser mais
+        especifico" —, entao nenhum sub-criterio esta ausente e a nota e 1.0.
+        Ausencia e ausencia; profundidade desigual nao e.
+      sub_criterios:
+        - "A resolução responde à pergunta do ticket com uma decisão ou conclusão explícita"
+        - "Cita fontes identificáveis (autor e ano, título, DOI, arXiv ou URL), e não 'estudos mostram'"
+        - "Distingue o que é fato das fontes do que é inferência ou suposição do agente"
+        - "Diz o que muda na pesquisa por causa da resolução (o que foi decidido, o que foi descartado)"
+
+  - id: resolucao_de_grilling
+    peso: 8
+    check: judge.artifacts.rubric
+    args:
+      role: wayfinder
+      rubrica: |
+        O artefato é um JSON exportado das issues do GitHub criadas pela skill
+        Wayfinder. Cada elemento tem o campo "tipo". Avalie SÓ os de
+        "tipo": "grilling" com "estado": "CLOSED" — ignore o mapa e os de tipo
+        research, que são avaliados em outro critério.
+        Um ticket de grilling é HITL (human in the loop): o agente faz UMA
+        pergunta por vez, com a resposta que ele recomenda, e o ESTUDANTE
+        responde — é o estudante quem decide. A resolução registrada no
+        comentário deve mostrar esse diálogo e a decisão final.
+
+        Se houver mais de um, avalie o MELHOR.
+
+        Escala, para nao punir profundidade com nota media:
+        - 1.0: todos os sub-critérios estão atendidos de forma substantiva.
+          Um sub-critério que poderia ser mais profundo, mas que está lá e
+          está ancorado, conta como atendido — não desconte por isso.
+        - 0.75: todos os sub-critérios estão presentes e ancorados, mas um
+          deles fica no mínimo aceitável.
+        - 0.5: um ou dois sub-critérios estão AUSENTES, ou presentes apenas
+          como enunciado sem nada que os sustente.
+        - 0.0: nenhum grilling fechado com resolução, ou "resolução" em que o
+          agente respondeu às próprias perguntas sem nenhuma resposta do
+          estudante.
+        Teste obrigatorio antes de dar menos que 1.0: nomeie o sub-criterio
+        que esta AUSENTE ou no minimo aceitavel. Se a sua ressalva e "poderia
+        detalhar mais", "poderia ser mais explicito" ou "poderia ser mais
+        especifico" —, entao nenhum sub-criterio esta ausente e a nota e 1.0.
+        Ausencia e ausencia; profundidade desigual nao e.
+      sub_criterios:
+        - "Mostra perguntas do agente e respostas do estudante, em sequência (o diálogo, ou um resumo fiel dele)"
+        - "As respostas do estudante trazem informação que o agente não tinha — não são só 'ok' ou 'concordo'"
+        - "Há pelo menos um ponto em que o estudante discordou, corrigiu ou refinou a recomendação do agente, e isso ficou registrado"
+        - "Termina com a decisão tomada, enunciada como frase afirmativa"
+
+# ---------------------------------------------------------------------------
+# Mecanismo, não receita: a diferença AFK/HITL que o Wayfinder formaliza, e a
+# disciplina do "não especificado" — o que ainda não está maduro para virar
+# ticket.
+# ---------------------------------------------------------------------------
+perguntas:
+  - texto: |
+      No Wayfinder, um ticket de pesquisa (research) é resolvido pelo agente
+      sozinho, e um de grilling só se resolve com você respondendo. Por que
+      essa divisão, e não deixar o agente resolver tudo? Dê um exemplo do seu
+      mapa: um ponto em que a SUA resposta no grilling mudou o rumo que o
+      agente tinha recomendado.
+    criterios_avaliacao: |
+      A resposta deve (1) explicar a divisão pelo TIPO de incerteza: pesquisa
+      resolve o que tem resposta no mundo (literatura, dados, documentação) e
+      o agente consegue buscar; grilling resolve o que é DECISÃO do
+      pesquisador — preferência, recorte, viabilidade, o que o orientador ou
+      o programa aceitam, o que o aluno sabe e não escreveu — e que o agente
+      só consegue adivinhar; e (2) dar um exemplo CONCRETO do próprio mapa:
+      qual pergunta, o que o agente recomendou, o que o aluno respondeu, e o
+      que mudou por causa disso.
+
+      Aceitar quem diga honestamente que concordou com todas as
+      recomendações, se explicar por que concordou e o que teria acontecido
+      se o agente tivesse decidido sozinho.
+
+      Rejeitar: "o grilling é mais interativo" sem dizer por que a decisão
+      precisa do humano; exemplo genérico que não cita nada do mapa do aluno.
+    peso: 15
+  - texto: |
+      O que ficou na seção "Não especificado" (Not yet specified) do seu mapa?
+      Escolha um item e explique por que ele ainda NÃO virou ticket, e que
+      resolução de outro ticket faria ele ficar claro o bastante para virar
+      um.
+    criterios_avaliacao: |
+      A resposta deve (1) citar um item real do "Não especificado" do mapa do
+      aluno; (2) explicar que ele ainda não virou ticket porque não se sabe
+      ainda formular a pergunta — depende de uma decisão anterior, e criar o
+      ticket agora seria planejar o que o próximo passo pode invalidar (a
+      "névoa" do Wayfinder); e (3) apontar a dependência: qual ticket, quando
+      resolvido, torna aquele item específico o bastante.
+
+      Aceitar dependências de fora do mapa (conversa com o orientador,
+      acesso a dados), desde que o raciocínio seja o mesmo.
+
+      Rejeitar: "ainda não deu tempo"; item inventado que não está no mapa;
+      explicação de que o "não especificado" é uma lista de tarefas para
+      depois.
+    peso: 15

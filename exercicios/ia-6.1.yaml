@@ -1,0 +1,466 @@
+exercicio: "ia-6.1"
+titulo: "Sua primeira dissertação dummy no template LaTeX do IDP"
+turmas:
+  - IA-2026-01
+disponivel_a_partir_de: 2026-05-01T00:00:00-03:00
+prazo:
+  recomendado_ate: 2026-10-20T23:59:59-03:00
+
+# ---------------------------------------------------------------------------
+# `requer_repositorio: false` NUM EXERCÍCIO QUE PEDE UM FORK. Mesma lógica do
+# ia-4.3: o fork existe e é medido, mas medido da máquina do aluno (`gh repo
+# view` e `git status` de dentro do clone), não pela API do GitHub no backend.
+# Motivo extra aqui: o nome do fork é livre (muita gente vai renomear para o
+# título da pesquisa), então não há `name_matches` a fazer, e um fork de
+# repositório público é público por força do GitHub — não há o que conferir
+# na visibilidade.
+# ---------------------------------------------------------------------------
+requer_repositorio: false
+
+# ---------------------------------------------------------------------------
+# Slides 30-34 da Aula 06. O aluno faz fork do TemplateLatexIDP, cola o prompt
+# do slide 33 no agente, e entrega o main.pdf compilado.
+#
+# O PROBLEMA DE CORRIGIR ESTE EXERCÍCIO: o template JÁ vem com tudo que o
+# slide 34 pede — figura, tabela, citação longa, citação indireta, 13 obras no
+# .bib e um main.pdf versionado. Um fork intocado passaria em qualquer checagem
+# de PRESENÇA. Por isso tudo abaixo mede DIFERENÇA em relação ao template:
+#
+#   * `dados.tex` sem os valores de exemplo ("Título do trabalho", "Nome
+#     Completo do Autor"...);
+#   * o main.pdf NÃO é o do template (sha256) e o título gravado nos metadados
+#     do PDF é o título de `dados.tex` — a prova de que o PDF foi compilado com
+#     os dados do aluno, e não apenas commitado;
+#   * figura e tabela contam só se o `\label` NÃO for um dos `*:exemplo` do
+#     template e se houver um `\ref` para ele no texto;
+#   * as 3 obras contam só se forem chaves que o template não tem, citadas no
+#     texto e definidas no .bib.
+#
+# QUEM MEDE É O PRÓPRIO YAML, NÃO UM SCRIPT DO ALUNO. O CLI só roda binário da
+# allowlist (gh, git, python, npm...) — não há `latexmk` nem `pdfinfo` — e o PDF
+# é binário, então `evidence.artifacts.*` não o lê. A saída é o verificador
+# abaixo, passado como `python -c`: ele lê as fontes .tex, abre o main.pdf com
+# zlib (sem dependência nenhuma), e imprime um envelope JSON que os critérios
+# leem com regex. Ficar no YAML tem duas vantagens sobre um script entregue:
+# o aluno não o edita, e o backend compara o argv inteiro com a whitelist.
+#
+# Regex, e não `http_json_match`, pelo motivo de sempre (ia-4.1/ia-5.x): o CLI
+# concatena stderr no stdout. `python` e `python3` aparecem os dois; basta um
+# rodar (Windows nativo tem `python`, macOS/WSL costuma ter só `python3`).
+#
+# O verificador começa com a linha-marcador `# autograde:ia-6.1-verificador`:
+# é por ela que o `driver.py` do autograder reconhece o comando e fabrica o
+# envelope do aluno perfeito. Não remova.
+# ---------------------------------------------------------------------------
+artefatos:
+  - role: dados
+    path: config/dados.tex
+  - role: introducao
+    path: capitulos/01-introducao.tex
+  - role: referencial
+    path: capitulos/02-referencial-teorico.tex
+  - role: resumo
+    path: pretextual/resumo.tex
+
+comandos_shell:
+  - cmd: ["gh", "--version"]
+    extract: gh_version
+  - cmd: ["gh", "auth", "status"]
+    extract: gh_auth
+  # Sem `{owner_repo}`: de dentro do clone o `gh` resolve o fork pelo remote.
+  # `parent.name` só existe quando `isFork` é verdadeiro.
+  - cmd: ["gh", "repo", "view", "--json", "name,isFork,parent,hasIssuesEnabled"]
+    extract: fork
+    timeout: 60
+  # `--branch` dá a linha `## main...origin/main [ahead N]`: é o que diz se o
+  # PDF compilado chegou ao GitHub, que é onde o slide manda entregar.
+  - cmd: ["git", "status", "--porcelain=v1", "--branch"]
+    extract: status
+    timeout: 60
+  - cmd:
+      - python
+      - -c
+      - &verificador |
+        # autograde:ia-6.1-verificador
+        import json, re, zlib, hashlib, os, glob, unicodedata
+        def ler(p):
+            try:
+                return open(p, encoding='utf-8', errors='replace').read()
+            except OSError:
+                return ''
+        def semcom(t):
+            return re.sub(r'(?<!\\)%.*', '', t)
+        def fold(s):
+            return unicodedata.normalize('NFKD', s).encode('ascii', 'ignore').decode().lower()
+        r = {}
+        dados = semcom(ler('config/dados.tex'))
+        m = re.search(r'\\titulo\{([^}]*)\}', dados)
+        titulo = m.group(1).strip() if m else ''
+        r['titulo_dados'] = titulo
+        r['dados_placeholders'] = [p for p in ('Título do trabalho', 'Nome Completo do Autor', 'SOBRENOME, Nome', 'Nome Completo do Orientador', 'Nome Completo do Examinador', 'Termo 1.', 'Word 1.') if p in dados]
+        m = re.search(r'\\documentclass\[([^\]]*)\]\{idp\}', semcom(ler('main.tex')))
+        r['classe'] = m.group(1) if m else ''
+        b = b''
+        try:
+            b = open('main.pdf', 'rb').read()
+        except OSError:
+            pass
+        r['pdf_existe'] = b[:5] == b'%PDF-'
+        r['pdf_sha256'] = hashlib.sha256(b).hexdigest()[:12]
+        r['pdf_e_o_do_template'] = r['pdf_sha256'] == '402ba3dd7066'
+        partes = [b]
+        for s in re.finditer(rb'stream\r?\n', b):
+            try:
+                partes.append(zlib.decompressobj().decompress(b[s.end():s.end() + 4000000]))
+            except zlib.error:
+                pass
+        tudo = b'\n'.join(partes)
+        r['pdf_paginas'] = len(re.findall(rb'/Type\s*/Page(?![a-zA-Z])', tudo))
+        m = re.search(rb'/Title\s*\(((?:\\.|[^\\)])*)\)', tudo)
+        tb = m.group(1) if m else b''
+        tb = re.sub(rb'\\([0-7]{1,3}|.)', lambda x: bytes([int(x.group(1), 8) & 255]) if x.group(1)[:1].isdigit() else x.group(1), tb, flags=re.S)
+        tpdf = tb[2:].decode('utf-16-be', 'replace') if tb[:2] == b'\xfe\xff' else tb.decode('latin-1')
+        r['pdf_titulo'] = tpdf[:120]
+        m = re.search(rb'/CreationDate\s*\(D:(\d{8})', tudo)
+        r['pdf_criado_em'] = m.group(1).decode() if m else ''
+        r['titulo_confere'] = len(titulo) > 3 and 'titulo do trabalho' not in fold(titulo) and fold(titulo) in fold(tpdf)
+        fontes = [f for f in glob.glob('**/*.tex', recursive=True) + ['referencias.bib'] if os.path.exists(f)]
+        r['pdf_mais_novo_que_fontes'] = bool(b) and os.path.getmtime('main.pdf') + 5 >= max(os.path.getmtime(f) for f in fontes)
+        PTPL = set('09480b 0dd480 1994e7 261050 29fa7e 6a102f 7c9e19 7e14ad 883226 909848 933bc1 9f04c2 a7409e b5cec2'.split())
+        def digital(x):
+            return hashlib.sha1(' '.join(fold(' '.join(x)).split()[:8]).encode()).hexdigest()[:6]
+        caps = sorted(glob.glob('capitulos/*.tex'))
+        texto = ''
+        r['paragrafos'] = {}
+        r['paragrafos_do_template'] = 0
+        for c in caps:
+            t = semcom(ler(c))
+            texto += t + '\n'
+            t = re.sub(r'\\begin\{(figure|table|quadro|grafico|citacao|itemize|enumerate)\}.*?\\end\{\1\}', '\n\n', t, flags=re.S)
+            blocos = [re.findall(r'[^\W\d_]{2,}', re.sub(r'\\[a-zA-Z]+(\[[^\]]*\])?(\{[^}]*\})?', ' ', x)) for x in re.split(r'\n\s*\n', t)]
+            blocos = [x for x in blocos if len(x) >= 20]
+            seus = [x for x in blocos if digital(x) not in PTPL]
+            r['paragrafos_do_template'] += len(blocos) - len(seus)
+            r['paragrafos'][os.path.basename(c)[:2]] = len(seus)
+        r['capitulos_com_2_paragrafos'] = sum(1 for v in r['paragrafos'].values() if v >= 2)
+        TPL = {'abnt10520', 'abnt6023', 'abnt14724', 'abnt6027', 'sa1971', 'nicholls1993', 'authier1982', 'exemplocapitulo', 'exemplotese', 'exemploevento', 'exemplosite', 'brasil1988', 'brasil2011lai'}
+        bib = set(re.findall(r'@\w+\s*\{\s*([^,\s]+)\s*,', semcom(ler('referencias.bib'))))
+        cit = set()
+        for g in re.findall(r'\\(?:paren|text|foot|auto)?cite(?:online)?\*?(?:\[[^\]]*\])*\{([^}]*)\}', texto):
+            cit.update(k.strip() for k in g.split(','))
+        r['obras_no_bib'] = len(bib)
+        r['obras_novas_citadas'] = sorted(k for k in cit & bib if k not in TPL)
+        r['citacoes_sem_entrada_no_bib'] = sorted(cit - bib)
+        CITE = r'\\(?:paren|text|foot|auto)?cite(?:online)?\*?(?:\[[^\]]*\])*\{([^}]*)\}'
+        def novas(x):
+            return [k.strip() for g in re.findall(CITE, x) for k in g.split(',') if k.strip() not in TPL]
+        longas = re.findall(r'\\begin\{citacao\}(.*?)\\end\{citacao\}', texto, flags=re.S)
+        r['citacao_direta_longa'] = sum(1 for x in longas if novas(x) and len(x.split()) >= 30)
+        fora = re.sub(r'\\begin\{citacao\}.*?\\end\{citacao\}', '', texto, flags=re.S)
+        r['citacao_indireta'] = len(novas(fora))
+        refs = set(re.findall(r'\\(?:auto|c|page)?ref\{([^}]+)\}', texto))
+        for amb in ('figure', 'table'):
+            ok = 0
+            for x in re.findall(r'\\begin\{' + amb + r'\}(.*?)\\end\{' + amb + r'\}', texto, flags=re.S):
+                lab = re.findall(r'\\label\{([^}]+)\}', x)
+                if '\\caption' in x and '\\fonte' in x and lab and lab[0] in refs and not lab[0].endswith(':exemplo'):
+                    ok += 1
+            r[amb + '_completa'] = ok
+        for p, marca in (('pretextual/resumo.tex', 'Este espaço é reservado'), ('pretextual/abstract.tex', 'This space is reserved')):
+            t = semcom(ler(p))
+            r[os.path.basename(p)[:-4] + '_preenchido'] = marca not in t and len(t.split()) >= 60
+        log = ler('main.log')
+        r['log'] = {'existe': bool(log), 'erros': len(re.findall(r'^! ', log, flags=re.M)), 'refs_indefinidas': len(re.findall(r'(?:Reference|Citation) .* undefined', log))}
+        print(json.dumps(r, ensure_ascii=True, indent=1))
+    extract: verif
+    timeout: 120
+  - cmd: ["python3", "-c", *verificador]
+    extract: verif3
+    timeout: 120
+
+# ---------------------------------------------------------------------------
+# Balanço: 70 em critérios + 30 nas perguntas = 100.
+#
+#   identidade ............... 2
+#   o fork ................... 4
+#   entregue no GitHub ....... 6
+#   config/dados.tex ......... 8
+#   o PDF .................... 14
+#   o texto dummy ............ 10
+#   citações e referências ... 12
+#   figura e tabela .......... 6
+#   coerência (juiz) ......... 8
+# ---------------------------------------------------------------------------
+criterios:
+  # === Identidade (2) ===
+  - id: gh_autenticado
+    peso: 2
+    check: evidence.shell.gh_auth_ok
+
+  # === O fork (4) ===
+  - id: e_um_fork
+    peso: 2
+    check: evidence.shell.stdout_matches
+    args:
+      extract: fork
+      pattern: '"isFork"\s*:\s*true'
+      descricao: "o repositório é um fork"
+  - id: fork_do_template
+    peso: 2
+    check: evidence.shell.stdout_matches
+    args:
+      extract: fork
+      pattern: '"parent"\s*:\s*\{[^{}]*"name"\s*:\s*"TemplateLatexIDP"'
+      descricao: "o fork é do TemplateLatexIDP"
+
+  # === Entregue no GitHub (6) ===
+  # O slide diz "entregue o main.pdf gerado" — num fork, entregar é commitar
+  # e fazer push. PDF compilado só na máquina não foi entregue.
+  - id: fontes_e_pdf_commitados
+    peso: 3
+    check: evidence.shell.stdout_absent
+    args:
+      extract: status
+      pattern: '^(?:.M|M.|A.|\?\?) (?:"?main\.pdf|"?main\.tex|"?config/|"?capitulos/|"?pretextual/|"?referencias\.bib)'
+      flags: m
+      descricao: "nenhuma alteração do main.pdf ou das fontes ficou fora do commit"
+  - id: push_feito
+    peso: 3
+    check: evidence.shell.stdout_matches
+    args:
+      extract: status
+      # Só casa se o branch tem upstream E não está `[ahead N]`.
+      pattern: '^## \S+\.\.\.\S+(?:\s+\[behind \d+\])?\s*$'
+      flags: m
+      descricao: "o branch está sincronizado com o GitHub (push feito)"
+
+  # === config/dados.tex (8) ===
+  - id: dados_sem_valores_de_exemplo
+    peso: 5
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [verif, verif3]
+      pattern: '"dados_placeholders": \[\]'
+      descricao: "config/dados.tex sem os valores de exemplo do template"
+  - id: classe_mestrado
+    peso: 3
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [verif, verif3]
+      # Dissertação é `mestrado`; quem estiver no doutorado usa `doutorado`.
+      pattern: '"classe": "[^"]*(?:mestrado|doutorado)'
+      descricao: "main.tex usa \\documentclass[mestrado]{idp}"
+
+  # === O PDF (14) ===
+  - id: pdf_existe
+    peso: 2
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [verif, verif3]
+      pattern: '"pdf_existe": true'
+      descricao: "main.pdf existe e é um PDF"
+  - id: pdf_nao_e_o_do_template
+    peso: 3
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [verif, verif3]
+      pattern: '"pdf_e_o_do_template": false'
+      descricao: "o main.pdf não é o que veio no template"
+  - id: pdf_compilado_com_seus_dados
+    peso: 5
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [verif, verif3]
+      # O título nos metadados do PDF vem de `\titulo{}` via hyperref. Se
+      # bate com o `dados.tex`, o PDF foi compilado a partir dele.
+      pattern: '"titulo_confere": true'
+      descricao: "o título gravado no PDF é o título de config/dados.tex"
+  - id: pdf_atualizado
+    peso: 4
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [verif, verif3]
+      pattern: '"pdf_mais_novo_que_fontes": true'
+      descricao: "o main.pdf é mais novo que todos os .tex e o .bib (recompile depois de editar)"
+
+  # === O texto dummy (10) ===
+  - id: cinco_capitulos_dois_paragrafos
+    peso: 6
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [verif, verif3]
+      # Parágrafo = bloco entre linhas em branco com >= 20 palavras de texto,
+      # fora de figura/tabela/citação/lista.
+      pattern: '"capitulos_com_2_paragrafos": (?:[5-9]|\d{2,})'
+      descricao: "os 5 capítulos têm pelo menos 2 parágrafos cada"
+  - id: resumo_preenchido
+    peso: 2
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [verif, verif3]
+      pattern: '"resumo_preenchido": true'
+      descricao: "resumo escrito (não é o texto do template)"
+  - id: abstract_preenchido
+    peso: 2
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [verif, verif3]
+      pattern: '"abstract_preenchido": true'
+      descricao: "abstract escrito (não é o texto do template)"
+
+  # === Citações e referências (12) ===
+  - id: citacao_direta_longa
+    peso: 3
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [verif, verif3]
+      pattern: '"citacao_direta_longa": [1-9]'
+      descricao: "uma citação direta longa (ambiente citacao, com \\cite dentro)"
+  - id: citacao_indireta
+    peso: 2
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [verif, verif3]
+      pattern: '"citacao_indireta": [1-9]'
+      descricao: "pelo menos uma citação indireta no corpo do texto"
+  - id: tres_obras_suas
+    peso: 5
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [verif, verif3]
+      # Três chaves que o template NÃO tem, citadas no texto e no .bib.
+      pattern: '"obras_novas_citadas": \[\s*"[^"]+",\s*"[^"]+",\s*"[^"]+"'
+      descricao: "3 obras suas no referencias.bib, todas citadas no texto"
+  - id: nenhuma_citacao_orfa
+    peso: 2
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [verif, verif3]
+      pattern: '"citacoes_sem_entrada_no_bib": \[\]'
+      descricao: "toda \\cite aponta para uma entrada do referencias.bib"
+
+  # === Figura e tabela (6) ===
+  - id: figura_completa
+    peso: 3
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [verif, verif3]
+      pattern: '"figure_completa": [1-9]'
+      descricao: "uma figura sua com \\caption, \\fonte e \\label chamado por \\ref"
+  - id: tabela_completa
+    peso: 3
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [verif, verif3]
+      pattern: '"table_completa": [1-9]'
+      descricao: "uma tabela sua com \\caption, \\fonte e \\label chamado por \\ref"
+
+  # === Coerência (8) ===
+  # O único critério que olha o CONTEÚDO. Texto dummy não é texto final — o
+  # que se pede é que ele seja o esqueleto da pesquisa DO aluno, e não lorem
+  # ipsum com cara de dissertação.
+  - id: texto_e_da_sua_pesquisa
+    peso: 8
+    check: judge.artifacts.rubric
+    args:
+      roles: [dados, introducao, referencial, resumo]
+      rubrica: |
+        Os quatro blocos são arquivos LaTeX de uma dissertação "dummy" escrita
+        com ajuda de um agente de IA no template do IDP: os metadados
+        (config/dados.tex), a introdução, o referencial teórico e o resumo. O
+        exercício pede DOIS parágrafos por capítulo — é um esqueleto, não o
+        texto final. NÃO avalie profundidade acadêmica, extensão nem estilo.
+        Linhas que começam com % são comentários do LaTeX (instruções do
+        template, que não vão para o PDF): ignore-as. Comandos como \section,
+        \parencite e \NomeAutor são marcação, não texto.
+
+        A pergunta que este critério responde: esse esqueleto é da pesquisa
+        DESTE aluno, com o título e o tema declarados em dados.tex, ou é texto
+        genérico que caberia em qualquer dissertação?
+
+        Escala, para nao punir profundidade com nota media:
+        - 1.0: todos os sub-critérios estão atendidos de forma substantiva.
+          Um sub-critério que poderia ser mais profundo, mas que está lá e
+          está ancorado, conta como atendido — não desconte por isso.
+        - 0.75: todos os sub-critérios estão presentes e ancorados, mas um
+          deles fica no mínimo aceitável.
+        - 0.5: um ou dois sub-critérios estão AUSENTES, ou presentes apenas
+          como enunciado sem nada que os sustente.
+        - 0.0: três ou mais sub-critérios ausentes; texto genérico, lorem
+          ipsum, ou o texto de exemplo do template.
+          O texto de exemplo são as INSTRUÇÕES de como escrever cada parte
+          ("Na primeira página da parte textual do trabalho...", "Enuncie, em
+          um único parágrafo...", "Texto introdutório de um parágrafo,
+          conforme exigido pela ABNT..."). Se a introdução ou o referencial
+          ainda são essas instruções, a nota é 0.0, mesmo que dados.tex esteja
+          preenchido.
+        Teste obrigatorio antes de dar menos que 1.0: nomeie o sub-criterio
+        que esta AUSENTE ou no minimo aceitavel. Se a sua ressalva e "poderia
+        detalhar mais", "poderia ser mais explicito" ou "poderia ser mais
+        especifico" —, entao nenhum sub-criterio esta ausente e a nota e 1.0.
+        Ausencia e ausencia; profundidade desigual nao e.
+      sub_criterios:
+        - "Introdução e resumo tratam do tema do título de dados.tex, com o problema ou a pergunta da pesquisa enunciados"
+        - "O referencial usa as citações para dizer algo sobre o tema — a citação sustenta uma frase do texto, não está solta"
+        - "O resumo é coerente com a introdução (mesmo objeto, mesmo recorte)"
+        - "Nada do texto de exemplo do template sobrou ('Este espaço é reservado...', 'Título representativo...', instruções da ABNT como conteúdo)"
+
+# ---------------------------------------------------------------------------
+# As duas perguntas cobram MECANISMO (Teste de Feynman da aula 5), não receita:
+# a primeira, o caminho de uma \cite até a lista de referências; a segunda, a
+# verificação das referências — o CLAUDE.md do template proíbe o agente de
+# inventar referência, e o prompt do slide 33 pede 3 delas.
+# ---------------------------------------------------------------------------
+perguntas:
+  - texto: |
+      Você escreveu \cite{chave} (ou \parencite, \citeonline) no capítulo e a
+      obra apareceu formatada em ABNT na lista de Referências. Explique o
+      caminho: o que o pdflatex, o biber e o latexmk fazem, em que ordem, e por
+      que o LaTeX precisa compilar mais de uma vez para a citação e o
+      "Figura 1" do \ref saírem certos.
+    criterios_avaliacao: |
+      A resposta deve chegar ao MECANISMO das passadas. O que se espera, com
+      palavras do aluno:
+
+      (1) na primeira passada o pdflatex NÃO sabe formatar a citação: ele
+      registra as chaves citadas (e os \label) em arquivos auxiliares
+      (.aux/.bcf) e deixa marcadores/"??";
+      (2) o biber lê essas chaves e o referencias.bib, aplica o estilo abnt e
+      grava o resultado (.bbl);
+      (3) a passada seguinte do pdflatex lê o .bbl e as referências cruzadas
+      do .aux; como números de página e de figura só se conhecem depois de
+      compor o documento, é preciso mais uma passada para tudo estabilizar;
+      (4) o latexmk automatiza isso: roda as ferramentas até os auxiliares
+      pararem de mudar.
+
+      Aceitar nomes de arquivo imprecisos se o mecanismo estiver certo
+      (informação escrita numa passada e lida na seguinte). Aceitar quem
+      use bibtex no lugar de biber, desde que o papel esteja certo.
+
+      Rejeitar: "o latexmk compila tudo" sem dizer o que cada passo produz;
+      "precisa compilar várias vezes porque sim"; confundir o biber com o
+      pdflatex.
+    peso: 15
+  - texto: |
+      O CLAUDE.md do template proíbe o agente de inventar referências
+      bibliográficas, e o prompt do slide 33 pede 3 referências no
+      referencias.bib. Como o seu agente lidou com esse conflito? E como VOCÊ
+      verificou que as 3 obras existem e que os dados delas (autor, ano,
+      título, periódico) estão certos?
+    criterios_avaliacao: |
+      A resposta deve (1) dizer o que o agente fez de fato diante da regra —
+      pediu as referências ao aluno, marcou % TODO, buscou e mostrou a fonte,
+      ou inventou e foi corrigido — e não descrever o que ele "deveria" fazer;
+      e (2) descrever uma verificação CONCRETA de cada obra por uma fonte
+      externa ao agente: DOI resolvido, página do periódico, Google Scholar,
+      catálogo da biblioteca, texto oficial da lei. Citar pelo menos uma das
+      obras pelo nome.
+
+      Aceitar quem diga que o agente inventou e que o aluno descobriu na
+      verificação — é a resposta mais valiosa, desde que diga como descobriu
+      e o que corrigiu. Aceitar quem tenha fornecido as próprias referências.
+
+      Rejeitar: "o agente usou referências reais" sem dizer como se sabe;
+      "conferi" sem dizer onde; verificação feita pedindo ao próprio agente
+      para confirmar (é circular — o juiz é o mesmo que errou).
+    peso: 15

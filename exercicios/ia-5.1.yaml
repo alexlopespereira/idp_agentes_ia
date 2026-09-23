@@ -1,0 +1,562 @@
+exercicio: "ia-5.1"
+titulo: "Audite seu próprio processo: o prompt como instrumento de diagnóstico"
+turmas:
+  - IA-2026-01
+disponivel_a_partir_de: 2026-05-01T00:00:00-03:00
+prazo:
+  recomendado_ate: 2026-10-20T23:59:59-03:00
+
+# SEM REPOSITORIO NO GITHUB. Como nos ia-3.2 e ia-4.x: o CLI nao le
+# `remote.origin.url`, nao manda `repo_url`, e o backend nao chama a API do
+# GitHub. A pasta de trabalho basta.
+# ATENCAO A UMA SUTILEZA: este exercicio AUDITA repositorios git locais, e o
+# `inventario.py` do aluno roda `git` dentro deles. Isso NAO e a mesma coisa
+# que `requer_repositorio: true` -- aquilo amarraria a NOTA a um repo do aluno
+# no GitHub, com owner batendo com o roster. Aqui o git e apenas fonte de
+# evidencia local; os repos auditados podem ser privados, sem remote nenhum,
+# ou de um projeto do trabalho que nunca vai para o GitHub.
+requer_repositorio: false
+
+# ---------------------------------------------------------------------------
+# Slide 41 da Aula 05. O artefato central NAO e a tabela -- e o PROMPT.
+#
+# A tese do slide: um agente com acesso ao seu repositorio e ao seu historico
+# de conversas devolve conselho generico de blog ("adote CI", "escreva testes")
+# quando o prompt nao o obriga a ancorar cada afirmacao numa evidencia e a
+# dizer "nao observavel" quando a evidencia falta. O exercicio e escrever esse
+# prompt, rodar, e depois discordar do resultado onde houver motivo.
+#
+# O que a nota mede, em ordem de peso:
+#
+#   1. O PROMPT (25 pts) -- papel e escopo, as quatro colunas, os quatro niveis
+#      de criticidade DEFINIDOS (nao apenas listados), a regra do "nao
+#      observavel" e a proibicao de supor, e as conversas como fonte de
+#      evidencia. 18 desses pontos saem de regex; 7 do juiz LLM, que e quem
+#      consegue ver a diferenca entre listar os niveis e definir cada um.
+#   2. A TABELA (16 pts) -- forma (4 colunas, >= 5 achados, criticidade
+#      marcada, caminhos de arquivo citados) e qualidade julgada CONTRA o
+#      proprio prompt: o juiz recebe os dois e pergunta se a tabela e o que o
+#      prompt pediu.
+#   3. A EXECUCAO (14 pts + 4 de evidencia cruzada) -- o `inventario.py` do
+#      aluno roda git nos repos auditados, confere quais caminhos citados na
+#      tabela existem de verdade, e grava o envelope. E o mesmo desenho do
+#      ia-4.1: quem prova que a coisa rodou e um script do aluno que a CLI
+#      re-executa na hora de validar.
+#   4. A DISCORDANCIA (9 pts) -- o paragrafo do slide. E a parte Feynman do
+#      exercicio: relatar o que pode invalidar a tese, inclusive quando a tese
+#      e a do agente.
+#
+# POR QUE O INVENTARIO EXISTE. Sem ele, o aluno entrega tres arquivos de texto
+# que ninguem consegue distinguir de ficcao bem escrita. O `inventario.py`
+# fecha o laco: ele le a TABELA ENTREGUE, extrai os caminhos de arquivo
+# citados, e confere cada um contra o `git ls-files` dos repos auditados. O
+# envelope publica quais confirmaram. A CLI roda o script no ato da validacao,
+# entao o envelope que chega ao corretor e sempre o da rodada que acabou de
+# acontecer.
+#
+# POR QUE REGEX E NAO `http_json_match` NO ENVELOPE: mesmo motivo do ia-4.1 --
+# o CLI concatena stderr no stdout antes de mandar, e o `git` escreve em stderr
+# (aviso de CRLF, de HEAD destacado). JSON puro nao sobrevive a isso; regex
+# sim. `python` e `python3` aparecem os dois porque Windows nativo tem
+# `python` e WSL/macOS costuma ter so `python3`; as primitivas de stdout
+# aceitam lista de rotulos e basta um ter rodado.
+# ---------------------------------------------------------------------------
+artefatos:
+  - role: repos
+    path: repos-auditados.txt
+  - role: prompt
+    path: prompt-auditoria.md
+  - role: tabela
+    path: tabela-auditoria.md
+  - role: script
+    path: inventario.py
+  - role: envelope
+    path: inventario.json
+  - role: discordancia
+    path: discordancia.md
+
+comandos_shell:
+  - cmd: ["gh", "--version"]
+    extract: gh_version
+  - cmd: ["gh", "auth", "status"]
+    extract: gh_auth
+  - cmd: ["python", "inventario.py"]
+    extract: inv
+    timeout: 180
+  - cmd: ["python3", "inventario.py"]
+    extract: inv3
+    timeout: 180
+
+# ---------------------------------------------------------------------------
+# Balanco: 70 em criterios + 30 nas perguntas = 100.
+#
+#   identidade (gh auth) ....  2
+#   o prompt ................ 25
+#   a tabela ................ 16
+#   execucao do inventario .. 14
+#   evidencia cruzada .......  4
+#   a discordancia ..........  9
+# ---------------------------------------------------------------------------
+criterios:
+  # === Identidade (2) ===
+  # Unico vinculo com o GitHub, e ele NAO exige repositorio: `gh auth status`
+  # so diz QUEM esta logado, e `gh_auth_ok` compara esse usuario com o
+  # `github_username` do roster.
+  - id: gh_autenticado
+    peso: 2
+    check: evidence.shell.gh_auth_ok
+
+  # === O prompt (25) ===
+  # 18 pontos de regex + 7 de juiz. A regex confere que a clausula EXISTE; o
+  # juiz confere que ela faz alguma coisa. As duas coisas sao diferentes e as
+  # duas importam: sem a regex, um prompt vago ganha nota de juiz generoso;
+  # sem o juiz, um prompt que so cola as palavras-chave do slide passa inteiro.
+  - id: prompt_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: prompt
+  # Peso 1 de proposito: a persona e o requisito menos carregado do slide --
+  # "engenheiro senior" muda o vocabulario da resposta, nao o rigor dela. O
+  # rigor esta nas clausulas de evidencia, que valem 2 cada.
+  - id: prompt_papel_senior
+    peso: 1
+    check: evidence.artifacts.content_matches
+    args:
+      role: prompt
+      pattern: '(?s)(?=.*engenheir)(?=.*s[êe]nior)'
+      flags: is
+      descricao: "o prompt atribui o papel de engenheiro(a) de software sênior"
+  - id: prompt_escopo_diagnostico
+    peso: 2
+    check: evidence.artifacts.content_matches
+    args:
+      role: prompt
+      # "diagnosticar, nao corrigir": o escopo e o que impede o agente de
+      # gastar o exercicio escrevendo patches que ninguem pediu.
+      pattern: '(?s)(?=.*diagn[óo]stic)(?=.*(?:n[ãa]o\s+corrig|sem\s+corrig|n[ãa]o\s+implement|sem\s+implement|n[ãa]o\s+escrev\w*\s+c[óo]digo|n[ãa]o\s+prop\w*\s+patch))'
+      flags: is
+      descricao: "escopo explícito: diagnosticar, não corrigir"
+  - id: prompt_coluna_pratica
+    peso: 1
+    check: evidence.artifacts.content_matches
+    args:
+      role: prompt
+      pattern: 'pr[áa]tica'
+      flags: i
+      descricao: "coluna 'prática frágil' pedida"
+  - id: prompt_coluna_evidencia
+    peso: 1
+    check: evidence.artifacts.content_matches
+    args:
+      role: prompt
+      pattern: 'evid[êe]ncia'
+      flags: i
+      descricao: "coluna 'evidência' pedida"
+  - id: prompt_coluna_risco
+    peso: 1
+    check: evidence.artifacts.content_matches
+    args:
+      role: prompt
+      pattern: 'risco'
+      flags: i
+      descricao: "coluna 'risco concreto' pedida"
+  - id: prompt_coluna_primeiro_passo
+    peso: 1
+    check: evidence.artifacts.content_matches
+    args:
+      role: prompt
+      pattern: 'primeiro\s+passo'
+      flags: i
+      descricao: "coluna 'primeiro passo' pedida"
+  - id: prompt_niveis_criticidade
+    peso: 3
+    check: evidence.artifacts.content_matches
+    args:
+      role: prompt
+      # Os quatro niveis, todos. Lookahead em vez de alternancia com `min: 4`
+      # de proposito: `min: 4` passaria com a palavra "Alto" quatro vezes.
+      pattern: '(?s)(?=.*bloqueante)(?=.*alto)(?=.*m[ée]dio)(?=.*baixo)'
+      flags: is
+      descricao: "os quatro níveis de criticidade (Bloqueante/Alto/Médio/Baixo)"
+  - id: prompt_nao_observavel
+    peso: 2
+    check: evidence.artifacts.content_matches
+    args:
+      role: prompt
+      pattern: 'n[ãa]o\s+observ[áa]vel'
+      flags: i
+      descricao: "a saída 'não observável' para quando falta evidência"
+  - id: prompt_proibe_supor
+    peso: 2
+    check: evidence.artifacts.content_matches
+    args:
+      role: prompt
+      # A negacao TEM que estar perto do verbo. "voce pode supor" tambem casaria
+      # com `supor` sozinho, e seria o oposto do que o slide pede.
+      pattern: '(?:proibid\w*|pro[íi]b\w*|n[ãa]o|nunca|jamais|sem|vedad\w*)[^.\n]{0,70}(?:supor|suposi[çc]|especul|inventar|adivinh|conjectur|extrapol)'
+      flags: i
+      descricao: "proibição explícita de supor o que não foi observado"
+  - id: prompt_cita_conversas
+    peso: 2
+    check: evidence.artifacts.content_matches
+    args:
+      role: prompt
+      # O slide pede "trechos das conversas" entre as fontes de evidencia -- e
+      # e a fonte que quase todo mundo esquece, porque auditar repo e obvio e
+      # auditar como voce conduziu o agente nao e.
+      pattern: 'conversa|transcri|sess[ãõ]o|sess[õo]es|hist[óo]rico\s+(?:de|da|das|do)'
+      flags: i
+      descricao: "as conversas com o agente listadas como fonte de evidência"
+  - id: prompt_qualidade
+    peso: 7
+    check: judge.artifacts.rubric
+    args:
+      role: prompt
+      rubrica: |
+        O artefato é o PROMPT que o aluno escreveu para fazer um agente de
+        código auditar os próprios repositórios e o próprio histórico de
+        conversas, procurando a distância entre o processo de trabalho dele e
+        as boas práticas de engenharia de software e de CI/CD.
+
+        A pergunta que este critério responde: este prompt IMPEDE conselho
+        genérico, ou apenas pede uma auditoria com palavras bonitas?
+
+        Julgue o prompt, não o assunto. Um prompt curto e cirúrgico vale mais
+        que um prompt longo e cerimonioso. Aceitar qualquer idioma, qualquer
+        formatação e qualquer harness.
+        Um limite que o aluno declara sobre o proprio trabalho conta A
+        FAVOR, nunca contra: a aula pede honestidade epistemica, e a
+        limitacao confessada e a prova de que ela existe. Nao trate uma
+        ressalva do aluno como sub-criterio nao atendido.
+        Vale o mesmo, e com mais forca, para AUTOCORRECAO: se o aluno foi
+        verificar depois uma parte que havia marcado como suposicao e, por causa
+        do resultado, revisou uma criticidade ou uma conclusao, isso e
+        precisamente o comportamento que a aula pede — conte o sub-criterio como
+        ATENDIDO, e de forma exemplar. Julgue a versao FINAL do artefato, nunca a
+        intermediaria: nao desconte dizendo que "a classificacao inicial estava
+        errada" ou que "a informacao nao estava na avaliacao inicial" quando o
+        proprio artefato mostra a correcao, o que a motivou e o que ela muda.
+
+        Escala, para nao punir profundidade com nota media:
+        - 1.0: todos os sub-critérios estão atendidos de forma substantiva.
+          Um sub-critério que poderia ser mais profundo, mas que está lá e
+          está ancorado, conta como atendido — não desconte por isso.
+        - 0.75: todos os sub-critérios estão presentes e ancorados, mas um
+          deles fica no mínimo aceitável.
+        - 0.5: um ou dois sub-critérios estão AUSENTES, ou presentes apenas
+          como enunciado sem nada que os sustente.
+        - 0.0: o artefato não faz a tarefa, ou é cumprimento cosmético.
+
+        Teste obrigatorio antes de dar 0.5: nomeie o sub-criterio que esta
+        AUSENTE do artefato. Se voce nao consegue nomear nenhum — se a sua
+        ressalva e "poderia detalhar mais", "poderia ser mais explicito",
+        "poderia ser mais cauteloso" ou "nao esta tao desenvolvido quanto os
+        outros" —, entao nenhum sub-criterio esta ausente e a nota e 1.0 ou
+        0.75. Ausencia e ausencia; profundidade desigual nao e.
+      sub_criterios:
+        - "Os quatro níveis de criticidade são DEFINIDOS — cada nível diz que tipo de consequência coloca um achado ali (ex.: 'Bloqueante = perda de dado ou credencial exposta'), e não apenas listados como quatro palavras"
+        - "Cada fonte de evidência vem com ONDE olhar: arquivo, diretório ou comando concreto, de modo que o agente possa ir atrás sem ter que perguntar nada. Não atende o prompt que só manda 'analise o repositório' ou que nomeia temas sem dizer onde eles ficam"
+        - "O prompt obriga a ancorar cada linha da tabela numa evidência localizável (caminho de arquivo, comando, hash de commit, trecho de conversa) em vez de aceitar afirmação sem fonte"
+        - "O prompt restringe a saída ao diagnóstico — o agente não deve corrigir, refatorar nem propor patch — e manda usar 'não observável' quando a evidência falta, em vez de preencher a lacuna com o que é plausível"
+
+  # === A tabela (16) ===
+  - id: tabela_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: tabela
+  - id: tabela_cinco_achados
+    peso: 3
+    check: evidence.artifacts.content_matches
+    args:
+      role: tabela
+      # Linha de tabela markdown com >= 4 colunas. `min: 7` = cabecalho +
+      # separador + 5 achados. Nao exigimos cabecalho exato: quem acrescentar
+      # uma coluna propria (dono, prazo) nao deve perder ponto por isso.
+      pattern: '^\s*\|(?:[^|\n]*\|){3,}'
+      flags: m
+      min: 7
+      descricao: "tabela markdown de 4+ colunas com pelo menos 5 achados"
+  - id: tabela_criticidade_marcada
+    peso: 2
+    check: evidence.artifacts.content_matches
+    args:
+      role: tabela
+      pattern: 'bloqueante|alto|m[ée]dio|baixo'
+      flags: i
+      min: 5
+      descricao: "cada achado recebeu um nível de criticidade"
+  - id: tabela_caminhos_citados
+    peso: 2
+    check: evidence.artifacts.content_matches
+    args:
+      role: tabela
+      # Evidencia localizavel = arquivo com extensao. E o sinal mais barato de
+      # que a coluna "evidencia" aponta para algo, e nao descreve um sentimento.
+      pattern: '[\w./\\-]+\.(?:py|js|jsx|ts|tsx|md|ya?ml|json|toml|cfg|ini|txt|sh|ps1|bat|ipynb|sql|lock|env|gitignore|dockerfile|r|do)\b'
+      flags: i
+      min: 3
+      descricao: "a coluna de evidência cita pelo menos 3 arquivos"
+  - id: tabela_qualidade
+    peso: 7
+    check: judge.artifacts.rubric
+    args:
+      roles: [tabela, prompt]
+      rubrica: |
+        O primeiro bloco é a TABELA que o agente devolveu ao auditar os
+        repositórios e o histórico de conversas do aluno. O segundo bloco é o
+        PROMPT que a pediu.
+
+        A pergunta que este critério responde: a tabela é o que o prompt pediu,
+        ou é conselho de blog com as colunas certas?
+
+        Julgar a tabela CONTRA o prompt — se o prompt definiu os níveis de
+        criticidade de um jeito, a tabela tem que usar aqueles níveis com
+        aquele significado. Um achado incômodo e pequeno ("o .env está
+        rastreado no git desde o commit inicial") vale mais que um achado
+        grandioso e genérico ("falta observabilidade").
+
+        Não penalizar o aluno por ter um processo ruim — o exercício é
+        diagnóstico, e um diagnóstico honesto de um processo frágil é o
+        resultado esperado. Penalizar a tabela que não prova nada.
+        Um limite que o aluno declara sobre o proprio trabalho conta A
+        FAVOR, nunca contra: a aula pede honestidade epistemica, e a
+        limitacao confessada e a prova de que ela existe. Nao trate uma
+        ressalva do aluno como sub-criterio nao atendido.
+        Vale o mesmo, e com mais forca, para AUTOCORRECAO: se o aluno foi
+        verificar depois uma parte que havia marcado como suposicao e, por causa
+        do resultado, revisou uma criticidade ou uma conclusao, isso e
+        precisamente o comportamento que a aula pede — conte o sub-criterio como
+        ATENDIDO, e de forma exemplar. Julgue a versao FINAL do artefato, nunca a
+        intermediaria: nao desconte dizendo que "a classificacao inicial estava
+        errada" ou que "a informacao nao estava na avaliacao inicial" quando o
+        proprio artefato mostra a correcao, o que a motivou e o que ela muda.
+
+        Escala, para nao punir profundidade com nota media:
+        - 1.0: todos os sub-critérios estão atendidos de forma substantiva.
+          Um sub-critério que poderia ser mais profundo, mas que está lá e
+          está ancorado, conta como atendido — não desconte por isso.
+        - 0.75: todos os sub-critérios estão presentes e ancorados, mas um
+          deles fica no mínimo aceitável.
+        - 0.5: um ou dois sub-critérios estão AUSENTES, ou presentes apenas
+          como enunciado sem nada que os sustente.
+        - 0.0: o artefato não faz a tarefa, ou é cumprimento cosmético.
+
+        Teste obrigatorio antes de dar 0.5: nomeie o sub-criterio que esta
+        AUSENTE do artefato. Se voce nao consegue nomear nenhum — se a sua
+        ressalva e "poderia detalhar mais", "poderia ser mais explicito",
+        "poderia ser mais cauteloso" ou "nao esta tao desenvolvido quanto os
+        outros" —, entao nenhum sub-criterio esta ausente e a nota e 1.0 ou
+        0.75. Ausencia e ausencia; profundidade desigual nao e.
+      sub_criterios:
+        - "Cada achado aponta uma evidência localizável e específica do repositório ou da conversa do aluno (caminho, comando, ausência de arquivo, trecho citado) — e não uma prática ausente enunciada em abstrato"
+        - "O risco é uma consequência concreta no contexto do aluno ('um rebase perde o trabalho porque não há push há 12 dias'), não a repetição da prática frágil em outras palavras"
+        - "O primeiro passo é executável no tempo prometido pelo prompt e é um passo de verdade, não um projeto disfarçado ('adotar CI/CD' não é um primeiro passo de 30 minutos)"
+        - "A criticidade atribuída é coerente com as definições do prompt e varia entre os achados — uma tabela em que tudo é Alto não hierarquizou nada"
+        - "Pelo menos um achado vem do histórico de conversas com o agente — de como o aluno conduziu o agente — e não só dos arquivos do repositório"
+
+  # === Execucao do inventario (14) ===
+  # O miolo da evidencia. Tudo daqui sai do stdout de `python inventario.py`
+  # rodado na maquina do aluno, no diretorio de onde ele chamou `autograde
+  # validar`.
+  - id: repos_auditados_existe
+    peso: 1
+    check: evidence.artifacts.exists
+    args:
+      role: repos
+  - id: inventario_script_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: script
+  - id: inventario_json_existe
+    peso: 1
+    check: evidence.artifacts.exists
+    args:
+      role: envelope
+  - id: inv_repos
+    peso: 2
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [inv, inv3]
+      pattern: '"repos_auditados"\s*:\s*[1-9]'
+      descricao: "o inventário percorreu ao menos 1 repositório"
+  - id: inv_commits
+    peso: 2
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [inv, inv3]
+      # >= 5 commits somados. O slide diz "repositorios em que voce VEM
+      # trabalhando"; um repo criado para o exercicio nao e objeto de auditoria.
+      pattern: '"commits_total"\s*:\s*(?:[5-9]|[1-9]\d+)'
+      descricao: "os repos auditados somam >= 5 commits de histórico real"
+  - id: inv_ultimo_commit
+    peso: 1
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [inv, inv3]
+      pattern: '"ultimo_commit"\s*:\s*"[0-9a-f]{7,}'
+      flags: i
+      descricao: "o envelope carrega o hash do último commit de cada repo"
+  - id: inv_caminho_confirmado
+    peso: 3
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [inv, inv3]
+      # O ponto alto: um caminho citado na TABELA existe de verdade no
+      # `git ls-files` de um dos repos auditados.
+      pattern: '"caminhos_confirmados"\s*:\s*\[\s*"[^"]{4,}"'
+      descricao: "ao menos um caminho citado na tabela existe nos repos auditados"
+  - id: inv_sem_traceback
+    peso: 2
+    check: evidence.shell.stdout_absent
+    args:
+      extract: [inv, inv3]
+      # So o traceback do Python. "python3 not found in PATH" NAO e falha: e a
+      # maquina que so tem um dos dois interpretadores.
+      pattern: 'Traceback \(most recent call last\)'
+      descricao: "o inventário rodou sem estourar exceção"
+
+  # === Evidencia cruzada (4) ===
+  # O `evidencia_citada` do envelope e um caminho que o proprio script extraiu
+  # da tabela e confirmou no git. Exigir que ele apareca na tabela entregue
+  # pega o caso em que a tabela foi editada depois da rodada -- e o caso em que
+  # o envelope foi escrito a mao.
+  - id: evidencia_bate_com_tabela
+    peso: 4
+    check: evidence.artifacts.cross_reference_required
+    args:
+      role_a: envelope
+      role_b: tabela
+      pattern_in_a: '"evidencia_citada"\s*:\s*"([^"]{4,})"'
+
+  # === A discordancia (9) ===
+  - id: discordancia_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: discordancia
+  - id: discordancia_qualidade
+    peso: 7
+    check: judge.artifacts.rubric
+    args:
+      roles: [discordancia, tabela]
+      rubrica: |
+        O primeiro bloco é o parágrafo em que o aluno concorda ou discorda da
+        criticidade atribuída ao item nº 1 da tabela. O segundo bloco é a
+        tabela.
+
+        A pergunta que este critério responde: o aluno julgou a criticidade com
+        um argumento próprio, ou repetiu o agente com outras palavras?
+
+        Concordar é uma resposta tão boa quanto discordar — desde que o
+        argumento seja do aluno e traga informação que o agente não tinha (quem
+        usa o sistema, quantas pessoas dependem dele, o que já deu errado
+        antes, qual é o custo real de estar errado). O que não vale é o
+        parágrafo que só reafirma a linha da tabela.
+        Um limite que o aluno declara sobre o proprio trabalho conta A
+        FAVOR, nunca contra: a aula pede honestidade epistemica, e a
+        limitacao confessada e a prova de que ela existe. Nao trate uma
+        ressalva do aluno como sub-criterio nao atendido.
+        Vale o mesmo, e com mais forca, para AUTOCORRECAO: se o aluno foi
+        verificar depois uma parte que havia marcado como suposicao e, por causa
+        do resultado, revisou uma criticidade ou uma conclusao, isso e
+        precisamente o comportamento que a aula pede — conte o sub-criterio como
+        ATENDIDO, e de forma exemplar. Julgue a versao FINAL do artefato, nunca a
+        intermediaria: nao desconte dizendo que "a classificacao inicial estava
+        errada" ou que "a informacao nao estava na avaliacao inicial" quando o
+        proprio artefato mostra a correcao, o que a motivou e o que ela muda.
+
+        Escala, para nao punir profundidade com nota media:
+        - 1.0: todos os sub-critérios estão atendidos de forma substantiva.
+          Um sub-critério que poderia ser mais profundo, mas que está lá e
+          está ancorado, conta como atendido — não desconte por isso.
+        - 0.75: todos os sub-critérios estão presentes e ancorados, mas um
+          deles fica no mínimo aceitável.
+        - 0.5: um ou dois sub-critérios estão AUSENTES, ou presentes apenas
+          como enunciado sem nada que os sustente.
+        - 0.0: o artefato não faz a tarefa, ou é cumprimento cosmético.
+
+        Teste obrigatorio antes de dar 0.5: nomeie o sub-criterio que esta
+        AUSENTE do artefato. Se voce nao consegue nomear nenhum — se a sua
+        ressalva e "poderia detalhar mais", "poderia ser mais explicito",
+        "poderia ser mais cauteloso" ou "nao esta tao desenvolvido quanto os
+        outros" —, entao nenhum sub-criterio esta ausente e a nota e 1.0 ou
+        0.75. Ausencia e ausencia; profundidade desigual nao e.
+      sub_criterios:
+        - "O parágrafo identifica sem ambiguidade de qual item da tabela está falando e qual criticidade o agente deu a ele"
+        - "Toma posição explícita — concordo ou discordo — e sustenta com um argumento sobre CONSEQUÊNCIA no contexto do aluno, não sobre a plausibilidade genérica do achado"
+        - "Traz ao menos um fato de contexto que não estava na tabela e que muda o cálculo da criticidade (quem depende, com que frequência, o que acontece se falhar, o que já falhou)"
+
+# ---------------------------------------------------------------------------
+# A reflexao e INTERATIVA, como nos ia-3.x e ia-4.x: o aluno responde na CLI,
+# na hora de submeter. A pergunta 1 e sobre o instrumento (o prompt); a
+# pergunta 2 amarra o exercicio aos marcadores epistemicos dos slides 8-10.
+# ---------------------------------------------------------------------------
+perguntas:
+  - texto: |
+      Qual cláusula do seu prompt foi a que separou conselho genérico de achado
+      real? Cite a cláusula, cite o achado que ela produziu, e diga o que o
+      agente respondeu antes de você acrescentá-la — ou o que ele responderia
+      sem ela.
+    criterios_avaliacao: |
+      A resposta precisa fazer TRÊS coisas, e o valor está na ligação entre
+      elas:
+
+      (1) NOMEAR UMA CLÁUSULA concreta do prompt — a exigência de evidência
+      localizável, a regra do "não observável", a definição de um nível de
+      criticidade, a restrição a diagnóstico, o pedido de olhar as conversas.
+      Citar o texto ou parafrasear de perto, não descrever "eu pedi para ser
+      específico".
+
+      (2) NOMEAR UM ACHADO que essa cláusula produziu, com o detalhe que o
+      torna daquele repositório e não de qualquer repositório.
+
+      (3) O CONTRASTE — o que veio antes (se houve iteração real) ou o que
+      viria sem a cláusula. É aqui que se vê se o aluno entendeu que o prompt é
+      o instrumento: sem a cláusula, a saída seria conselho de blog, e o aluno
+      consegue dizer QUAL conselho de blog.
+
+      Aceitar contraste hipotético bem argumentado — não todo mundo guardou a
+      versão anterior do prompt. Aceitar que a cláusula tenha sido descoberta
+      por acidente. Aceitar que o aluno diga que NENHUMA cláusula fez diferença
+      e mostre por quê — se ele sustentar com o que o agente devolveu, é uma
+      resposta honesta e boa.
+
+      Rejeitar: elogio ao prompt sem achado ("ficou muito mais específico");
+      achado sem cláusula (não mostra que o aluno sabe de onde ele veio);
+      repetir a lista de requisitos do enunciado como se fosse resposta;
+      contraste vazio ("sem isso a resposta seria pior").
+    peso: 18
+  - texto: |
+      Classifique três linhas da sua tabela com os marcadores da aula —
+      [FACT], [INFERENCE] e [ASSUMPTION] — e justifique cada marcador. Se você
+      considerar que as três são [FACT], explique como cada uma foi verificada.
+    criterios_avaliacao: |
+      O que a resposta precisa mostrar é que o aluno separa o que foi observado
+      do que foi deduzido e do que foi adotado sem checar:
+
+      (1) [FACT] — precisa vir acompanhado da observação que o prova: o comando
+      que foi rodado, o arquivo que foi aberto, a ausência que foi verificada.
+      "É fato que não há CI" só é [FACT] se o aluno disser que olhou
+      `.github/workflows/` e não havia nada.
+      (2) [INFERENCE] — precisa nomear os fatos de que deriva. "Inferi que
+      ninguém roda os testes porque o último commit que tocou em tests/ é de
+      março" é uma inferência bem marcada.
+      (3) [ASSUMPTION] — precisa ser admitida como não verificada E dizer o que
+      a verificaria. É o marcador mais difícil de usar com honestidade, e o
+      mais valioso quando aparece.
+
+      Aceitar que as três sejam do mesmo marcador DESDE QUE justificado nesse
+      padrão — três [FACT] com três verificações nomeadas é resposta completa.
+      Aceitar que o aluno reclassifique uma linha da própria tabela, admitindo
+      que o agente a apresentou como fato sendo inferência: é exatamente o que
+      a aula pede.
+
+      Rejeitar: marcador pendurado na linha sem justificativa; três [FACT] sem
+      nenhuma verificação nomeada; confundir [INFERENCE] com [ASSUMPTION] sem
+      perceber a diferença (a primeira deriva de fatos nomeados, a segunda não
+      deriva de nada — foi adotada); recitar a definição dos três marcadores
+      sem aplicá-los à tabela.
+    peso: 12
