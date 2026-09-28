@@ -34,5 +34,9 @@ exercicios:
   ia-4.1:
   ia-4.2:
   ia-4.3:
-  # A aula 5 entra aqui quando `ia-5.1.yaml`/`ia-5.2.yaml` chegarem na `main`.
-  # Listar antes disso matricularia a turma num exercicio que responde 404.
+  ia-5.1:
+  ia-5.2:
+  ia-6.1:
+  ia-6.2:
+  ia-7.1:
+  ia-8.1:
