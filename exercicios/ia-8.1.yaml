@@ -1,0 +1,278 @@
+exercicio: "ia-8.1"
+titulo: "Grill-me: oportunidades para o Jev nos seus projetos com IA"
+turmas:
+  - IA-2026-01
+disponivel_a_partir_de: 2026-05-01T00:00:00-03:00
+prazo:
+  recomendado_ate: 2026-10-20T23:59:59-03:00
+
+# ---------------------------------------------------------------------------
+# SEM REPOSITORIO, como no ia-3.2: o aluno roda o `validar` da pasta que
+# centraliza os projetos dele (ou da pasta da pesquisa de mestrado), e essa
+# pasta quase nunca e um repo. Identidade = login Google + roster, e
+# `gh auth status` amarra a conta GitHub.
+requer_repositorio: false
+
+# ---------------------------------------------------------------------------
+# Slide 33 da Aula 08 ("Exercicio ia 8.1"), depois dos slides 30-32 sobre o
+# Jev, da TypeSafe AI: modelo "System One" que NAO gera texto -- recebe um
+# estado e perguntas tipadas (Choice, Score, Noul) e devolve decisoes com
+# confianca calibrada, em 70-500 ms, a US$ 0,042 por milhao de tokens de
+# entrada (saida gratuita). O slide diz tambem onde NAO usar: chat, texto
+# longo, geracao de codigo.
+#
+# O que o slide pede: rodar um /grill-me na pasta que reune os projetos que o
+# aluno faz com IA, para achar oportunidades de usar o Jev em tres eixos:
+#   (a) otimizar custo,
+#   (b) destravar casos de uso que nao eram viaveis,
+#   (c) melhorar a qualidade de decisoes delegadas (ou delegaveis) a LLMs.
+#
+# O slide nao nomeia artefato; este YAML fixa dois, na raiz da pasta de
+# onde o aluno roda o `validar`:
+#   grill-me-transcript.md   a sessao, perguntas numeradas Qn/Qnn
+#   jev-oportunidades.md     o que a sessao produziu, uma secao por oportunidade
+#
+# O EXERCICIO E O ENCAIXE. O erro que se quer pegar e o de quem trata o Jev
+# como "um LLM mais barato" e propoe usa-lo para resumir, redigir ou gerar
+# codigo. O juiz de adequacao reprova isso. O segundo erro e a oportunidade
+# generica ("classificar e-mails") sem projeto de verdade por tras: o juiz de
+# rastreabilidade exige que ela saia do transcript, com projeto nomeado.
+#
+# Nao ha como exigir que o aluno CHAME a API do Jev: acesso antecipado, chave
+# paga, e o slide nao pede prototipo. O que se cobra e o desenho: as
+# perguntas tipadas, o limiar de confianca com fallback, e a conta de custo.
+#
+# Os comandos sao os mesmos do ia-3.2 (gh + `npm exec skills list`), entao o
+# `driver.py` ja fabrica o stdout do aluno perfeito sem mudanca nenhuma.
+# ---------------------------------------------------------------------------
+artefatos:
+  - role: grill_transcript
+    path: grill-me-transcript.md
+  - role: oportunidades
+    path: jev-oportunidades.md
+
+comandos_shell:
+  - cmd: ["gh", "--version"]
+    extract: gh_version
+  - cmd: ["gh", "auth", "status"]
+    extract: gh_auth
+  # Mesma deteccao agnostica de harness do ia-3.2: `skills add` grava em
+  # `~/.agents/skills/<nome>/`, e `skills list` le de volta, nos dois escopos.
+  - cmd: ["npm", "exec", "-y", "skills", "--", "list"]
+    extract: skills_projeto
+    timeout: 180
+  - cmd: ["npm", "exec", "-y", "skills", "--", "list", "-g"]
+    extract: skills_global
+    timeout: 180
+
+# ---------------------------------------------------------------------------
+# Balanco: 70 em criterios + 30 nas perguntas = 100.
+#
+#   setup local .............. 2
+#   skill disponivel ......... 3
+#   transcript do grill-me .. 25
+#   oportunidades ........... 40
+# ---------------------------------------------------------------------------
+criterios:
+  # === Setup local (2) ===
+  - id: gh_autenticado
+    peso: 2
+    check: evidence.shell.gh_auth_ok
+
+  # === Skill disponivel (3) ===
+  - id: skill_grill_me_disponivel
+    peso: 3
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [skills_projeto, skills_global]
+      pattern: 'skills[\\/]grill-me(?![\w-])'
+      descricao: "skill grill-me disponível no ambiente do agente"
+
+  # === Transcript do grill-me (25) ===
+  # 12 perguntas, e nao 16 como no ia-3.2: aqui a sessao tem de percorrer
+  # varios projetos, e o que interessa e chegar a oportunidades defensaveis,
+  # nao exaurir um recorte.
+  - id: transcript_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: grill_transcript
+  - id: transcript_12_perguntas
+    peso: 5
+    check: evidence.artifacts.content_matches
+    args:
+      role: grill_transcript
+      pattern: '^\s*(?:#{1,6}\s*)?(?:\*\*)?Q\d{1,2}\b'
+      flags: m
+      min: 12
+      descricao: "pelo menos 12 perguntas numeradas (Q1/Q01, Q2/Q02, ...)"
+  - id: transcript_respostas_substantivas
+    peso: 10
+    check: judge.artifacts.rubric
+    args:
+      role: grill_transcript
+      rubrica: |
+        Este é o transcript de uma sessão /grill-me em que o agente,
+        olhando a pasta que reúne os projetos que o aluno faz com IA,
+        interroga o aluno para achar oportunidades de usar o Jev (um modelo
+        que responde perguntas tipadas -- escolha, nota, probabilidade -- com
+        confiança calibrada, e não gera texto). Cada pergunta numerada (Q1,
+        Q2, ... ou Q01, Q02, ...) deveria ter uma resposta do aluno logo
+        abaixo.
+
+        Avalie as RESPOSTAS, não as perguntas.
+      sub_criterios:
+        - "A grande maioria das perguntas numeradas tem resposta do aluno abaixo dela"
+        - "As respostas são decisões ou fatos concretos, não evasivas: rejeitar predominância de 'tanto faz', 'você decide', 'sim', 'ok' sem conteúdo. Uma resposta que depois é REVISADA numa pergunta seguinte não é evasiva: é o vaivém que o exercício pede"
+        - "As respostas falam de projetos concretos do aluno, pelo nome, com o que cada um faz hoje com LLM (qual chamada, qual volume, quem decide) -- não poderiam ser coladas no transcript de outra pessoa"
+        - "A sessão passa por mais de um projeto, ou, se o aluno usou só a pesquisa de mestrado, por mais de uma etapa dela"
+  - id: transcript_revisa_decisoes
+    peso: 8
+    check: judge.artifacts.rubric
+    args:
+      role: grill_transcript
+      rubrica: |
+        Numa design tree, algumas perguntas REABREM uma decisão já tomada
+        antes: por exemplo, uma oportunidade aceita em Q04 é descartada em
+        Q09 porque a tarefa exige gerar texto (onde o Jev não serve), ou o
+        volume estimado não justifica a troca; ou uma pergunta tipada como
+        Score vira Choice porque a escala não era ordenada.
+
+        Conte quantas vezes isso acontece neste transcript. O enunciado exige
+        pelo menos 2.
+
+        Score:
+        - 1.0: 2 ou mais revisões explícitas de decisão anterior, cada uma dizendo qual decisão está sendo revista e por quê
+        - 0.5: 1 revisão explícita, ou revisões apenas implícitas
+        - 0.0: nenhuma -- o transcript é uma coleta linear de respostas
+
+  # === Oportunidades (40) ===
+  - id: oportunidades_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: oportunidades
+  # Presenca dos tipos, nao merito: quem cita Choice/Score/Noul pelo menos 3
+  # vezes ao todo desenhou perguntas tipadas. Se o tipo e o CERTO, quem diz e
+  # o juiz de adequacao.
+  - id: oportunidades_perguntas_tipadas
+    peso: 4
+    check: evidence.artifacts.content_matches
+    args:
+      role: oportunidades
+      pattern: '\b(?:Choice|Score|Noul)\b'
+      min: 3
+      descricao: "perguntas tipadas do Jev (Choice, Score, Noul) no desenho das oportunidades"
+  - id: oportunidades_adequacao_jev
+    peso: 12
+    check: judge.artifacts.rubric
+    args:
+      role: oportunidades
+      rubrica: |
+        Este documento lista oportunidades de usar o Jev, da TypeSafe AI, nos
+        projetos do aluno. O Jev é um modelo "System One": recebe um estado
+        (ticket, e-mail, documento, log) e perguntas tipadas, e devolve
+        decisões estruturadas com confiança calibrada, em 70-500 ms. Os tipos
+        de pergunta são: Choice (escolhe uma opção de uma lista fechada),
+        Score (nota numa escala ORDENADA) e Noul (probabilidade de uma
+        afirmação ser verdadeira). Ele NÃO gera texto: não serve para chat,
+        resumo, redação, texto longo nem geração de código.
+
+        Avalie se as oportunidades são ENCAIXES REAIS do Jev.
+      sub_criterios:
+        - "Pelo menos 3 oportunidades, e cada uma é uma DECISÃO (classificar, rotear, triar, filtrar, ranquear, barrar) e não uma geração de texto disfarçada"
+        - "Cada oportunidade define as perguntas com o tipo certo: Choice para opções fechadas, Score para escala ordenada, Noul para afirmação verdadeiro/falso -- e não, por exemplo, Score para categorias sem ordem"
+        - "As perguntas são atômicas (uma decisão cada), como recomenda o slide, e não uma pergunta que embute várias"
+        - "Os três eixos do enunciado aparecem no conjunto: otimizar custo, destravar um caso de uso antes inviável, e melhorar a qualidade de uma decisão delegada a LLM"
+        - "Nomeia pelo menos um caso dos projetos do aluno em que o Jev NÃO serve (e por quê), mostrando que o aluno entendeu o limite"
+  - id: oportunidades_rastreavel
+    peso: 8
+    check: judge.artifacts.rubric
+    args:
+      roles: [oportunidades, grill_transcript]
+      rubrica: |
+        Avalie o documento de oportunidades (primeiro bloco) à luz do
+        transcript do grill-me (segundo bloco). A pergunta é se as
+        oportunidades SAEM DOS PROJETOS DO ALUNO, e não se estão bem
+        escritas: a adequação ao Jev e a conta de custo são avaliadas em
+        outros critérios.
+
+        Score:
+        - 1.0: toda oportunidade nomeia um projeto do aluno, diz o que acontece HOJE naquele ponto (uma chamada de LLM, uma regra fixa, um humano, ou nada -- uma frase basta) e foi discutida no transcript
+        - 0.5: parte das oportunidades não tem projeto nomeado, não diz o que acontece hoje, ou não aparece no transcript
+        - 0.0: oportunidades genéricas que valeriam para qualquer pessoa ('classificar e-mails', 'filtrar spam'), sem projeto, ou sem relação com o transcript
+  - id: oportunidades_confianca_fallback
+    peso: 6
+    check: judge.artifacts.rubric
+    args:
+      role: oportunidades
+      rubrica: |
+        O Jev devolve, com cada resposta, uma confiança calibrada (0-1). A
+        boa prática do slide é "usar a confiança para decidir quando pedir
+        revisão humana": o código age sozinho acima de um limiar e desvia
+        para um humano (ou para um LLM maior) abaixo dele.
+
+        Score:
+        - 1.0: toda oportunidade diz o que o código faz com a resposta e com a confiança -- um limiar (mesmo que provisório) e o que acontece abaixo dele -- e pelo menos UMA delas (não precisa ser todas) diz como o limiar será calibrado (amostra rotulada, taxa de erro aceitável)
+        - 0.5: limiar e fallback aparecem só em parte das oportunidades, ou sem valor nem critério
+        - 0.0: a confiança é ignorada; o documento trata a resposta do Jev como definitiva
+  - id: oportunidades_conta_custo
+    peso: 8
+    check: judge.artifacts.rubric
+    args:
+      role: oportunidades
+      rubrica: |
+        Preço do Jev no acesso antecipado (slide 32, set/2026): US$ 0,042 por
+        milhão de tokens de ENTRADA; tokens de saída são gratuitos. Na
+        demonstração da TypeSafe, a mesma tarefa custou US$ 0,00008 em 0,11 s
+        no Jev e US$ 0,0139 em 8,6 s num LLM.
+
+        Avalie se as oportunidades trazem uma conta de custo ou de tempo que
+        se sustenta. NÃO exija conta em todas: duas oportunidades com conta
+        completa bastam para 1.0. Conta como volume qualquer quantidade por
+        período (chamadas, sessões, artigos, submissões por mês ou por
+        rodada).
+
+        Score:
+        - 1.0: pelo menos duas oportunidades têm conta explícita -- volume (chamadas por dia ou mês), tamanho da entrada em tokens, custo hoje e custo com o Jev -- com números coerentes com o preço acima (sem cobrar tokens de saída do Jev), ou, para a oportunidade de "destravar", a conta que mostra por que antes era inviável (custo ou latência) e agora não é
+        - 0.5: há números, mas só em uma oportunidade, ou com erro de ordem de grandeza (ex.: preço por mil tomado por preço por milhão), ou sem o volume
+        - 0.0: nenhuma conta; só "é mais barato" ou "é mais rápido"
+
+perguntas:
+  - texto: |
+      Qual oportunidade você implementaria primeiro, e por que ela é do Jev e
+      não de um LLM de fronteira nem de uma regra fixa (if/regex)? Diga o
+      projeto, a pergunta tipada e o eixo (custo, destravar ou qualidade).
+    criterios_avaliacao: |
+      A resposta deve (1) nomear UMA oportunidade concreta, com o projeto e
+      pelo menos uma pergunta tipada (Choice, Score ou Noul) e o eixo; e
+      (2) justificar a escolha contra as DUAS alternativas: por que não um LLM
+      de fronteira (custo por chamada, latência, formato de saída que quebra,
+      confiança que não é calibrada) e por que não uma regra fixa (a decisão
+      depende de ler linguagem natural, casos que a regex não cobre).
+
+      Conta a favor: dizer por que essa vem PRIMEIRO (volume, risco baixo,
+      fácil de medir com uma amostra rotulada); citar o limiar de confiança.
+
+      Rejeitar: oportunidade que é geração de texto (resumo, resposta a
+      cliente, código); justificativa que só diz "é mais barato e mais
+      rápido" sem ligar ao caso; resposta sem projeto.
+    peso: 15
+  - texto: |
+      Cite uma ideia de uso do Jev que o grill-me derrubou ou mudou (diga o
+      Qnn) e explique o que estava errado nela.
+    criterios_avaliacao: |
+      A resposta deve (1) citar uma pergunta específica pelo número (Qnn) e
+      (2) descrever o antes e o depois: a ideia como era e por que caiu ou
+      mudou. Motivos aceitos: a tarefa exigia gerar texto; a decisão não era
+      atômica e virou duas perguntas; o tipo estava errado (Score em
+      categoria sem ordem, Choice em algo que era probabilidade); o volume não
+      justificava; o erro custava caro demais para agir sem humano; uma regra
+      fixa já resolvia.
+
+      Aceitar também quando a pergunta CONFIRMOU a ideia, desde que o aluno
+      explique o que ele agora defende melhor do que antes.
+
+      Rejeitar: elogio à ferramenta sem citar pergunta; resposta genérica
+      ("me fez pensar melhor"); copiar o documento de oportunidades.
+    peso: 15
