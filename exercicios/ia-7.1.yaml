@@ -1,0 +1,334 @@
+exercicio: "ia-7.1"
+titulo: "Cooldown de pacotes no npm, no pnpm e no uv"
+turmas:
+  - IA-2026-01
+disponivel_a_partir_de: 2026-05-01T00:00:00-03:00
+prazo:
+  recomendado_ate: 2026-10-20T23:59:59-03:00
+
+# ---------------------------------------------------------------------------
+# SEM REPOSITORIO, como no ia-4.2 e no ia-5.x: o CLI nao le
+# `remote.origin.url` e o backend nao chama a API do GitHub. A pasta de
+# trabalho basta -- nem precisa ser repo git. A identidade vem do login Google
+# + roster, e `gh auth status` amarra a conta GitHub sem precisar de repo.
+# ---------------------------------------------------------------------------
+requer_repositorio: false
+
+# ---------------------------------------------------------------------------
+# Slide 46 da Aula 07. Cenario: em 31/03/2026 o axios 1.14.1 e o 0.30.4 foram
+# publicados por uma conta de mantenedor comprometida, com a dependencia nova
+# `plain-crypto-js@4.2.1` (postinstall que instala um RAT), e ficaram ~3 horas
+# no npm. A meta da equipe: nenhuma versao com menos de 7 dias entra no projeto.
+#
+# O EXERCICIO E A UNIDADE. Os tres gerenciadores tem a mesma ideia com tres
+# grafias, e o slide avisa: "cada um usa uma unidade diferente".
+#
+#   npm  >= 11.10   .npmrc               min-release-age=7        DIAS
+#   pnpm >= 10.16   pnpm-workspace.yaml  minimumReleaseAge: 10080 MINUTOS
+#   uv   >= 0.9.17  uv.toml / pyproject  exclude-newer = "7 days" DURACAO
+#
+# O erro que se quer pegar e o que passa em silencio: `minimumReleaseAge: 7`
+# no pnpm e um cooldown de 7 MINUTOS, que nao teria barrado o axios; e
+# `exclude-newer = "2026-09-17T00:00:00Z"` no uv e uma data FIXA, que congela
+# o resolvedor naquele dia em vez de andar com o calendario. Por isso os
+# criterios nao casam texto: o verificador abaixo converte cada valor para
+# DIAS e so aceita exatamente 7. Mais de 7 tambem cumpre a meta "nada com
+# menos de 7 dias", mas o enunciado pede o cooldown de 7 -- e aceitar ">= 7"
+# deixaria passar 10080 no npm, que e o erro de unidade ao contrario (27 anos).
+#
+# SEGUNDA ARMADILHA: a chave so vale se a ferramenta a conhece. O npm anterior
+# a 11.10 le `min-release-age` do .npmrc, devolve 7 no `npm config get` e NAO
+# aplica nada -- so avisa `Unknown project config "min-release-age"` no stderr.
+# O CLI concatena stderr no stdout, entao o aviso chega ao backend e vira
+# criterio (`npm_chave_reconhecida`), junto com a versao do `npm --version`.
+# pnpm e uv nao estao na allowlist de binarios do CLI; deles o autograder so
+# ve o arquivo, e o enunciado pede a versao minima.
+#
+# QUEM MEDE E O PROPRIO YAML: o verificador vai como `python -c` (sem
+# dependencia nenhuma, nem tomllib nem PyYAML -- o tutorial aceita Python
+# 3.9), le os tres arquivos e imprime um envelope JSON que os criterios leem
+# com regex. Regex, e nao `http_json_match`, porque o CLI concatena stderr no
+# stdout. `python` e `python3` aparecem os dois; basta um rodar.
+#
+# O verificador comeca com a linha-marcador `# autograde:ia-7.1-verificador`:
+# e por ela que o `driver.py` do autograder reconhece o comando e fabrica o
+# envelope do aluno perfeito. Nao remova.
+#
+# As tarefas 2 e 3 do slide (justificar, avaliar custo) sao as duas
+# `perguntas:`, 15 pontos cada. (Ate 27/09/2026 havia uma terceira, "abrir
+# excecao para um patch urgente", que saiu do slide; o rodape do slide ainda
+# diz "tarefas 2 a 4".) Excecao nao e cobrada no arquivo: um
+# `minimumReleaseAgeExclude` com o pacote do patch e resposta certa hoje e
+# lixo daqui a uma semana. O arquivo so e cobrado por NAO abrir excecao
+# curinga (`*`), que e desligar o cooldown com outro nome.
+# ---------------------------------------------------------------------------
+artefatos:
+  - role: npmrc
+    path: .npmrc
+  - role: pnpm
+    path: pnpm-workspace.yaml
+  # O uv aceita os dois; basta um. O verificador procura primeiro o uv.toml.
+  - role: uv
+    path: uv.toml
+    required: false
+  - role: pyproject
+    path: pyproject.toml
+    required: false
+
+comandos_shell:
+  - cmd: ["gh", "--version"]
+    extract: gh_version
+  - cmd: ["gh", "auth", "status"]
+    extract: gh_auth
+  - cmd: ["npm", "--version"]
+    extract: npm_version
+    timeout: 60
+  # Roda na pasta de trabalho: e o `.npmrc` DELA que o npm tem que ler.
+  - cmd: ["npm", "config", "get", "min-release-age"]
+    extract: npm_cooldown
+    timeout: 60
+  - cmd:
+      - python
+      - -c
+      - &verificador |
+        # autograde:ia-7.1-verificador
+        import json, re, os
+        def ler(p):
+            try:
+                return open(p, encoding='utf-8', errors='replace').read()
+            except OSError:
+                return None
+        def semcom(t, c):
+            return '\n'.join(l.split(c, 1)[0] if not l.lstrip().startswith(c) else '' for l in t.splitlines())
+        def lista(t, chave):
+            m = re.search(r'^' + chave + r'\s*:\s*\[([^\]]*)\]', t, flags=re.M)
+            if m:
+                return [x.strip().strip('\'"') for x in m.group(1).split(',') if x.strip()]
+            m = re.search(r'^' + chave + r'\s*:\s*\n((?:[ \t]+-.*\n?)+)', t, flags=re.M)
+            return [x.strip().lstrip('-').strip().strip('\'"') for x in m.group(1).splitlines() if x.strip()] if m else []
+        UN = {'s': 1/86400, 'sec': 1/86400, 'secs': 1/86400, 'second': 1/86400, 'seconds': 1/86400,
+              'm': 1/1440, 'min': 1/1440, 'mins': 1/1440, 'minute': 1/1440, 'minutes': 1/1440,
+              'h': 1/24, 'hr': 1/24, 'hrs': 1/24, 'hour': 1/24, 'hours': 1/24,
+              'd': 1, 'day': 1, 'days': 1, 'w': 7, 'wk': 7, 'wks': 7, 'week': 7, 'weeks': 7}
+        def dias_uv(v):
+            v = v.strip()
+            if re.match(r'^\d{4}-\d{2}-\d{2}', v):
+                return 'timestamp', None
+            m = re.match(r'^P(?:(\d+)W)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$', v, flags=re.I)
+            if m and any(m.groups()):
+                w, d, h, mi, s = (int(x or 0) for x in m.groups())
+                return 'duracao', w * 7 + d + h / 24 + mi / 1440 + s / 86400
+            partes = re.findall(r'(\d+(?:\.\d+)?)\s*([a-z]+)', v.lower())
+            if partes and re.sub(r'[\d.\s,a-z]', '', v.lower()) == '' and all(u in UN for _, u in partes):
+                return 'duracao', sum(float(n) * UN[u] for n, u in partes)
+            return 'invalido', None
+        def sete(x):
+            return x is not None and abs(x - 7) < 1e-6
+        r = {}
+        npmrc = ler('.npmrc')
+        r['npmrc_existe'] = npmrc is not None
+        npmrc = semcom(npmrc or '', '#')
+        npmrc = semcom(npmrc, ';')
+        m = re.search(r'^\s*min-release-age\s*=\s*"?([^"\s]*)"?\s*$', npmrc, flags=re.M)
+        r['npm_valor'] = m.group(1) if m else ''
+        try:
+            r['npm_dias'] = float(r['npm_valor'])
+        except ValueError:
+            r['npm_dias'] = None
+        r['npm_7_dias'] = sete(r['npm_dias'])
+        r['pnpm_chave_no_npmrc'] = bool(re.search(r'^\s*(?:minimum-release-age|minimumReleaseAge)\s*=', npmrc, flags=re.M))
+        ws = ler('pnpm-workspace.yaml')
+        r['pnpm_workspace_existe'] = ws is not None
+        ws = semcom(ws or '', '#')
+        m = re.search(r'^minimumReleaseAge\s*:\s*[\'"]?(\d+(?:\.\d+)?)[\'"]?\s*$', ws, flags=re.M)
+        r['pnpm_valor'] = m.group(1) if m else ''
+        r['pnpm_dias'] = round(float(m.group(1)) / 1440, 4) if m else None
+        r['pnpm_7_dias'] = sete(r['pnpm_dias'])
+        uv, fonte = None, ''
+        for p in ('uv.toml', 'pyproject.toml'):
+            t = ler(p)
+            if t is None:
+                continue
+            t = semcom(t, '#')
+            if p == 'pyproject.toml':
+                m = re.search(r'^\[tool\.uv\]\s*$(.*?)(?=^\[|\Z)', t, flags=re.M | re.S)
+                t = m.group(1) if m else ''
+            m = re.search(r'^exclude-newer\s*=\s*["\']([^"\']*)["\']', t, flags=re.M)
+            if m:
+                uv, fonte = m.group(1), p
+                uvtxt = t
+                break
+        r['uv_arquivo'] = fonte
+        r['uv_valor'] = uv or ''
+        r['uv_formato'], r['uv_dias'] = dias_uv(uv) if uv else ('ausente', None)
+        if r['uv_dias'] is not None:
+            r['uv_dias'] = round(r['uv_dias'], 4)
+        r['uv_7_dias'] = sete(r['uv_dias'])
+        exc = {'npm': re.findall(r'^\s*min-release-age-exclude(?:\[\])?\s*=\s*(\S+)', npmrc, flags=re.M),
+               'pnpm': lista(ws, 'minimumReleaseAgeExclude'),
+               'uv': []}
+        if uv:
+            m = re.search(r'^exclude-newer-package\s*=\s*\{([^}]*)\}', uvtxt, flags=re.M)
+            if m:
+                exc['uv'] = [x.split('=')[0].strip().strip('\'"') for x in m.group(1).split(',') if '=' in x]
+        r['excecoes'] = exc
+        r['excecao_curinga'] = any(re.fullmatch(r'[*@/]*\**', x or '*') is not None for v in exc.values() for x in v)
+        r['meta_7_dias'] = [g for g in ('npm', 'pnpm', 'uv') if r[g + '_7_dias']]
+        print(json.dumps(r, ensure_ascii=True, indent=1))
+    extract: verif
+    timeout: 60
+  - cmd: ["python3", "-c", *verificador]
+    extract: verif3
+    timeout: 60
+
+# ---------------------------------------------------------------------------
+# Balanço: 70 em critérios + 30 nas perguntas = 100.
+#
+#   identidade ............... 2
+#   os arquivos .............. 6
+#   npm ...................... 22
+#   pnpm ..................... 18
+#   uv ....................... 18
+#   excecao sem curinga ...... 4
+# ---------------------------------------------------------------------------
+criterios:
+  # === Identidade (2) ===
+  - id: gh_autenticado
+    peso: 2
+    check: evidence.shell.gh_auth_ok
+
+  # === Os arquivos (6) ===
+  - id: npmrc_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: npmrc
+  - id: pnpm_workspace_existe
+    peso: 2
+    check: evidence.artifacts.exists
+    args:
+      role: pnpm
+  - id: uv_config_existe
+    peso: 2
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [verif, verif3]
+      pattern: '"uv_arquivo": "(?:uv|pyproject)\.toml"'
+      descricao: "exclude-newer declarado no uv.toml ou no [tool.uv] do pyproject.toml"
+
+  # === npm (22) ===
+  - id: npm_7_dias
+    peso: 10
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [verif, verif3]
+      pattern: '"npm_7_dias": true'
+      descricao: "npm: min-release-age=7 no .npmrc (a unidade do npm e DIAS)"
+  - id: npm_versao_com_cooldown
+    peso: 6
+    check: evidence.shell.stdout_matches
+    args:
+      extract: npm_version
+      # >= 11.10. Ancorado no inicio da linha: o aviso de engine do npm 12
+      # ("npm v12.1.0 does not support Node.js ...") tambem traz um numero.
+      pattern: '^\s*(?:(?:1[2-9]|[2-9]\d)\.\d+\.\d+|11\.(?:1\d|[2-9]\d)\.\d+)\s*$'
+      flags: m
+      descricao: "npm >= 11.10 (antes disso o min-release-age e ignorado)"
+  - id: npm_le_o_npmrc
+    peso: 3
+    check: evidence.shell.stdout_matches
+    args:
+      extract: npm_cooldown
+      pattern: '^\s*7\s*$'
+      flags: m
+      descricao: "npm config get min-release-age devolve 7 na pasta de trabalho"
+  - id: npm_chave_reconhecida
+    peso: 3
+    check: evidence.shell.stdout_absent
+    args:
+      extract: npm_cooldown
+      pattern: 'Unknown \w* ?config "min-release-age"'
+      descricao: "o npm reconhece a chave (sem o aviso Unknown config)"
+
+  # === pnpm (18) ===
+  - id: pnpm_chave_no_workspace
+    peso: 4
+    check: evidence.artifacts.content_matches
+    args:
+      role: pnpm
+      pattern: '^minimumReleaseAge\s*:'
+      flags: m
+      descricao: "minimumReleaseAge no pnpm-workspace.yaml"
+  - id: pnpm_7_dias
+    peso: 14
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [verif, verif3]
+      pattern: '"pnpm_7_dias": true'
+      descricao: "pnpm: minimumReleaseAge de 7 dias (a unidade do pnpm e MINUTOS: 10080)"
+
+  # === uv (18) ===
+  - id: uv_duracao_relativa
+    peso: 6
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [verif, verif3]
+      pattern: '"uv_formato": "duracao"'
+      descricao: "uv: exclude-newer e uma duracao, nao uma data fixa"
+  - id: uv_7_dias
+    peso: 12
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [verif, verif3]
+      pattern: '"uv_7_dias": true'
+      descricao: "uv: exclude-newer de 7 dias (\"7 days\", \"1 week\", \"P7D\"...)"
+
+  # === Excecao sem curinga (4) ===
+  - id: excecao_sem_curinga
+    peso: 4
+    check: evidence.shell.stdout_matches
+    args:
+      extract: [verif, verif3]
+      pattern: '"excecao_curinga": false'
+      descricao: "nenhuma excecao curinga (*) desliga o cooldown por outro nome"
+
+perguntas:
+  - texto: |
+      (Tarefa 2) Em até 3 linhas: por que o cooldown de 7 dias teria barrado
+      as versões maliciosas do axios de março de 2026?
+    criterios_avaliacao: |
+      A resposta deve (1) usar o fato de que as versões maliciosas ficaram
+      publicadas por pouco tempo (cerca de 3 horas) e foram retiradas muito
+      antes de completar 7 dias; e (2) explicar o mecanismo: com o cooldown o
+      gerenciador nunca seleciona uma versão com menos de 7 dias, então o
+      resolvedor ficaria na versão anterior (ex.: 1.14.0) e as maliciosas
+      já teriam sumido quando passassem a ser elegíveis.
+
+      Conta a favor, sem ser obrigatório: notar que a dependência nova
+      injetada (plain-crypto-js), também recém-publicada, cairia na mesma
+      regra; ou que o cooldown aposta no tempo de detecção da comunidade.
+
+      Rejeitar: "porque é mais seguro" sem mecanismo; afirmar que o cooldown
+      analisa o código, detecta malware ou verifica assinatura; confundir
+      com fixar versão no lockfile.
+    peso: 15
+  - texto: |
+      (Tarefa 3) Em até 3 linhas: cite um custo que o cooldown traz para a
+      equipe e o que você faria para conviver com ele.
+    criterios_avaliacao: |
+      A resposta deve citar um custo CONCRETO e a consequência dele. Exemplos
+      aceitos: correção de segurança legítima atrasada 7 dias; PR do
+      Dependabot/Renovate que abre e não instala (o bot não conhece o
+      cooldown do gerenciador); instalação que falha quando a faixa de
+      versões só tem versões novas (modo estrito); pacote interno da própria
+      organização, publicado hoje, bloqueado igual aos de fora; recurso novo
+      de uma biblioteca que a equipe precisa e não pode usar; o lockfile do uv
+      que grava a data calculada e só a atualiza numa nova resolução.
+
+      Conta a favor dizer como conviver: exceção por pacote, configurar o
+      mesmo atraso no bot de atualização, escopo interno excluído.
+
+      Rejeitar: "fica mais lento" ou "dá trabalho" sem dizer o quê;
+      afirmar que o cooldown deixa o projeto inseguro; custo que não existe
+      (ex.: "o cooldown baixa pacotes mais pesados").
+    peso: 15
