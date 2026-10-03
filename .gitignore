@@ -1,0 +1,4 @@
+# Filas, textos e votos de rotulação são sempre locais e privados.
+/data/
+__pycache__/
+.pytest_cache/

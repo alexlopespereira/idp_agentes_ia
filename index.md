@@ -5,6 +5,11 @@ title: Agentes de IA - IDP
 
 Materiais do curso **Agentes de IA**, ministrado no [IDP](https://www.idp.edu.br/) por [Alex Lopes Pereira](https://github.com/alexlopespereira).
 
+## Ferramenta de rotulação
+
+[Rotulação cega no terminal](rotulacao-terminal.md) — script Python para
+dupla leitura humana com checkpoints privados e desempate documentado.
+
 ## Comece por aqui
 
 **[Tutorial do Aluno](exercicios/Exercicios_Aula1.md)** — leva do zero até submeter o primeiro exercício e receber nota. Contém o setup completo do ambiente (Python, git, `gh`, CLI `autograde`), o cadastro do seu usuário do GitHub e o passo a passo dos exercícios da aula 1.
