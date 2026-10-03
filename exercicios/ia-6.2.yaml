@@ -7,9 +7,20 @@ prazo:
   recomendado_ate: 2026-10-20T23:59:59-03:00
 
 # ---------------------------------------------------------------------------
-# `requer_repositorio: false`, pelo mesmo motivo do ia-6.1: o repositório é o
-# fork do TemplateLatexIDP que o aluno fez no ia-6.1 (nome livre), e tudo é
-# medido de dentro do clone pelo `gh` do próprio aluno.
+# `requer_repositorio: false`: o backend não olha o GitHub. Tudo é medido de
+# dentro do clone pelo `gh` do próprio aluno.
+#
+# REPOSITÓRIO PÚBLICO OU PRIVADO. O aluno pode usar o fork do ia-6.1 (que é
+# público por força do GitHub: fork de repositório público não pode ser
+# privado) ou QUALQUER repositório dele, inclusive privado — muita gente não
+# quer o plano da dissertação aberto. Não há checagem de fork, de parent nem
+# de visibilidade. Isso funciona porque nem o backend nem o professor precisam
+# de acesso ao repositório: o `gh` do aluno lê as Issues (privadas ou não), e
+# o conteúdo avaliado viaja na submissão — o resumo no stdout do coletor e o
+# `wayfinder-export.json` como artefato. Os links `url` do export apontam
+# para issues que o professor talvez não consiga abrir; os juízes não
+# dependem deles. A visibilidade é capturada (`gh repo view --json
+# visibility`) só para constar na evidência.
 #
 # Slides 35-40 da Aula 06. O aluno escreve `contexto-pesquisa.md` (o que já
 # está decidido na pesquisa + UMA pergunta de aprofundamento sobre impacto
@@ -24,7 +35,8 @@ prazo:
 #
 #   1. chama `gh issue list` e `gh api graphql` (sub-issues do mapa) com o
 #      `gh` autenticado do aluno — de dentro do clone, `{owner}`/`{repo}` são
-#      resolvidos pelo próprio gh a partir do remote;
+#      resolvidos pelo próprio gh a partir do remote (ou do `gh repo
+#      set-default`), e o token do aluno enxerga o repositório privado dele;
 #   2. imprime um resumo compacto em JSON que os critérios determinísticos
 #      leem com regex (o stdout é truncado em 4 KB pelo CLI — o conteúdo das
 #      issues não cabe ali);
@@ -36,8 +48,9 @@ prazo:
 # Ticket RESOLVIDO = fechado e com um comentário de >= 300 caracteres (a
 # resolução que a skill escreve ao fechar). Fechar sem registrar não conta.
 #
-# Se o fork tem o remote `upstream` (o template original), rode antes
-# `gh repo set-default <seu-usuario>/<seu-fork>`: sem isso o gh pode ler as
+# Se o clone tem mais de um remote (o `upstream` do template, ou o fork
+# público do ia-6.1 ao lado de um repositório privado), rode antes
+# `gh repo set-default <seu-usuario>/<seu-repo>`: sem isso o gh pode ler as
 # issues do repositório errado.
 #
 # O coletor começa com a linha-marcador `# autograde:ia-6.2-coletor`, que o
@@ -56,8 +69,9 @@ comandos_shell:
     extract: gh_version
   - cmd: ["gh", "auth", "status"]
     extract: gh_auth
-  - cmd: ["gh", "repo", "view", "--json", "name,isFork,parent,hasIssuesEnabled"]
-    extract: fork
+  # Sem isFork/parent: o ia-6.2 aceita qualquer repositório, fork ou não.
+  - cmd: ["gh", "repo", "view", "--json", "name,visibility,hasIssuesEnabled"]
+    extract: repo
     timeout: 60
   - cmd:
       - python
@@ -143,10 +157,11 @@ criterios:
     peso: 2
     check: evidence.shell.stdout_matches
     args:
-      extract: fork
-      # Fork nasce com Issues DESLIGADAS; o Wayfinder não tem onde escrever.
+      extract: repo
+      # Fork nasce com Issues DESLIGADAS; sem elas o Wayfinder não tem onde
+      # escrever. Repositório novo (privado) já nasce com Issues ligadas.
       pattern: '"hasIssuesEnabled"\s*:\s*true'
-      descricao: "Issues habilitadas no fork (Settings → Features → Issues)"
+      descricao: "Issues habilitadas no repositório (Settings → Features → Issues)"
 
   # === contexto-pesquisa.md (9) ===
   - id: contexto_existe

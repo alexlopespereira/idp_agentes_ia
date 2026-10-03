@@ -1,25 +1,28 @@
 # Exercícios da Aula 6 — ia-6.1 e ia-6.2
 
-Dois laboratórios em cima **do mesmo repositório**, o fork do
-[TemplateLatexIDP](https://github.com/alexlopespereira/TemplateLatexIDP) que
-vai virar a sua dissertação:
+Dois laboratórios sobre a sua dissertação, a partir do fork do
+[TemplateLatexIDP](https://github.com/alexlopespereira/TemplateLatexIDP):
 
 - **ia-6.1** — a **dissertação dummy**: o template preenchido com os seus dados,
   dois parágrafos em cada capítulo, citações, figura, tabela e três obras suas
   no `.bib`, compilado em `main.pdf`. É o setup do trabalho que você vai
   escrever de verdade depois.
 - **ia-6.2** — o **mapa da contribuição científica**, feito com a skill
-  `/wayfinder`: um mapa de decisões nas Issues do fork, com um ticket de
+  `/wayfinder`: um mapa de decisões nas Issues do GitHub, com um ticket de
   pesquisa (o agente investiga sozinho) e um de *grilling* (o agente pergunta,
-  você decide) resolvidos.
+  você decide) resolvidos. Pode ser no fork do ia-6.1 **ou num repositório
+  privado seu**.
 
 **Prazo dos dois: o do calendário da turma** (o `autograde validar` avisa se a
 submissão está atrasada).
 
-**Os dois exigem o fork, mas o autograder não olha o GitHub por você.** Tudo é
-medido **de dentro do clone**, na sua máquina, com o seu `gh` autenticado — por
-isso o `autograde validar` tem que rodar na raiz do fork. O nome do fork é
-livre: pode renomear para o título da pesquisa.
+**O autograder não olha o GitHub por você.** Tudo é medido **de dentro do
+clone**, na sua máquina, com o seu `gh` autenticado — por isso o `autograde
+validar` tem que rodar na raiz do repositório. O ia-6.1 exige o fork (que o
+GitHub obriga a ser público, como o template); o ia-6.2 aceita **qualquer
+repositório seu, público ou privado**: nem o autograder nem o professor
+precisam de acesso a ele. O nome é livre: pode renomear para o título da
+pesquisa.
 
 Se você ainda não fez o setup (Python, Git, `gh`, CLI `autograde`, login
 Google), volte para a [Parte 1 do tutorial da Aula 1](Exercicios_Aula1.md#parte-1--setup-uma-vez-no-semestre).
@@ -191,29 +194,53 @@ no mapa — e só vira ticket quando outra decisão o deixar claro.
 
 ### O que você entrega
 
-Tudo no **mesmo fork do ia-6.1**:
+Tudo num **repositório seu no GitHub, público ou privado**:
 
 | Onde | O quê |
 |---|---|
-| `contexto-pesquisa.md` (raiz do fork) | o estado da sua pesquisa — tema, problema, o que já está decidido, o que está em aberto — e **uma pergunta de aprofundamento sobre impacto científico**, numa linha que termina com `?` |
-| Issues do fork | 1 issue-mapa (`wayfinder:map`) com Destination, Decisions so far e Not yet specified |
-| Issues do fork | ≥ 1 ticket `wayfinder:research` e ≥ 1 `wayfinder:grilling`, filhos do mapa |
-| Issues do fork | 1 de cada **fechado com a resolução registrada em comentário** |
+| `contexto-pesquisa.md` (raiz do repositório) | o estado da sua pesquisa — tema, problema, o que já está decidido, o que está em aberto — e **uma pergunta de aprofundamento sobre impacto científico**, numa linha que termina com `?` |
+| Issues do repositório | 1 issue-mapa (`wayfinder:map`) com Destination, Decisions so far e Not yet specified |
+| Issues do repositório | ≥ 1 ticket `wayfinder:research` e ≥ 1 `wayfinder:grilling`, filhos do mapa |
+| Issues do repositório | 1 de cada **fechado com a resolução registrada em comentário** |
 | o mapa | "Decisions so far" com link (`#N`) para os tickets fechados |
 
-### Passo 1 — Prepare o fork
+### Passo 1 — Escolha e prepare o repositório
+
+**Público ou privado, você escolhe.** O plano da dissertação não precisa ficar
+aberto: o verificador lê as Issues com o **seu** `gh` (que enxerga os seus
+repositórios privados) e manda o conteúdo junto com a submissão. A nota sai
+igual nos dois casos.
+
+- **Público — o fork do ia-6.1.** Use o próprio fork. Não dá para torná-lo
+  privado: o GitHub não deixa fork de repositório público ser privado.
+- **Privado — um repositório novo.** De dentro do clone do ia-6.1, crie uma
+  cópia privada e aponte o `gh` para ela:
+
+  ```bash
+  gh repo create <seu-usuario>/<nome-privado> --private --source . --remote privado --push
+  gh repo set-default <seu-usuario>/<nome-privado>
+  ```
+
+  O fork continua no remote `origin` para o ia-6.1. Valide o ia-6.1 **antes**
+  de trocar o default — ou volte com `gh repo set-default <seu-usuario>/<seu-fork>`
+  —, porque ele confere que o repositório do `gh` é o fork. Um repositório
+  privado vazio, só para o mapa, também serve: basta o `contexto-pesquisa.md`
+  na raiz do clone.
+
+Depois:
 
 1. **Habilite as Issues.** Fork nasce com Issues desligadas:
-   *Settings → General → Features → Issues*. Sem isso o Wayfinder não tem onde
-   escrever.
-2. **Aponte o `gh` para o fork.** Se o clone tem um remote `upstream` (o
-   template), rode:
+   *Settings → General → Features → Issues*. Repositório novo já nasce com
+   elas ligadas. Sem Issues o Wayfinder não tem onde escrever.
+2. **Aponte o `gh` para o repositório certo.** Se o clone tem mais de um
+   remote (o `upstream` do template, ou o fork e a cópia privada), rode:
 
    ```bash
-   gh repo set-default <seu-usuario>/<seu-fork>
+   gh repo set-default <seu-usuario>/<seu-repo>
    ```
 
-   Sem isso o `gh` pode criar e ler Issues **no template**, e não no seu fork.
+   Sem isso o `gh` pode criar e ler Issues **no template** ou no repositório
+   errado.
 3. **Instale a skill e as que ela chama** (como na Aula 3, troque o harness):
 
    ```bash
@@ -230,7 +257,7 @@ ferramenta usar?"). Commite e faça push.
 
 ### Passo 3 — O mapa
 
-No agente, dentro do fork: `/wayfinder` com o `contexto-pesquisa.md` como
+No agente, dentro do clone: `/wayfinder` com o `contexto-pesquisa.md` como
 ponto de partida. Deixe o mapa ter pelo menos um ticket de research (ex.:
 estado da arte da pergunta, bases de dados) e um de grilling (ex.: recorte,
 método, tipo de contribuição).
@@ -249,10 +276,11 @@ Wayfinder escreve a resolução em comentário e atualiza o mapa; confira que
 autograde validar ia-6.2
 ```
 
-O verificador lê as suas Issues com o seu `gh` e grava na raiz do fork um
-`wayfinder-export.json` com o mapa e os tickets — é esse arquivo que os juízes
-leem. Ele é **regravado a cada `validar`**: editar à mão não adianta. Não
-precisa commitá-lo (pode pôr no `.gitignore`).
+O verificador lê as suas Issues com o seu `gh` e grava na raiz do clone um
+`wayfinder-export.json` com o mapa e os tickets — é esse arquivo, enviado com
+a submissão, que os juízes leem; por isso o repositório pode ser privado. Ele
+é **regravado a cada `validar`**: editar à mão não adianta. Não precisa
+commitá-lo (pode pôr no `.gitignore`).
 
 1. Por que research é resolvido pelo agente sozinho e grilling só com você?
    Dê um exemplo do seu mapa em que **a sua resposta** mudou o rumo que o
@@ -261,16 +289,17 @@ precisa commitá-lo (pode pôr no `.gitignore`).
    não** virou ticket, e que resolução o faria virar um?
 
 A CLI roda, na sua máquina: `gh --version`, `gh auth status`,
-`gh repo view --json name,isFork,parent,hasIssuesEnabled` e um coletor em
+`gh repo view --json name,visibility,hasIssuesEnabled` e um coletor em
 `python -c` (com `python3` como alternativa) que chama `gh issue list` e
-`gh api graphql` (as sub-issues do mapa).
+`gh api graphql` (as sub-issues do mapa). A visibilidade só fica registrada:
+não conta ponto.
 
 ### Critérios do ia-6.2
 
 | Critério | Peso | O que precisa |
 |---|---:|---|
 | `gh_autenticado` | 2 | `gh auth status` OK, na conta do roster |
-| `issues_habilitadas` | 2 | Issues ligadas no fork |
+| `issues_habilitadas` | 2 | Issues ligadas no repositório |
 | `contexto_existe` | 2 | `contexto-pesquisa.md` na raiz |
 | `contexto_tem_pergunta` | 2 | uma linha terminando em `?` |
 | `contexto_bom` | 5 | tema e recorte, decidido × em aberto, uma pergunta de contribuição (LLM avalia) |
@@ -327,9 +356,13 @@ estar `\caption`, `\label` e `\fonte{}`; o **primeiro** `\label` tem que ser
 chamado por um `\ref` no texto; e não pode terminar em `:exemplo`.
 
 **ia-6.2 zerado inteiro com o mapa no GitHub.** O `gh` está lendo outro
-repositório — quase sempre o template, pelo remote `upstream`. Rode
-`gh issue list` na raiz do fork: se não aparecem as suas issues,
-`gh repo set-default <seu-usuario>/<seu-fork>`.
+repositório — quase sempre o template, pelo remote `upstream`, ou o fork
+quando o mapa está na cópia privada. Rode `gh issue list` na raiz do clone: se
+não aparecem as suas issues, `gh repo set-default <seu-usuario>/<seu-repo>`.
+
+**`e_um_fork` zerado no ia-6.1 depois do ia-6.2 privado.** O `gh` está
+apontando para a cópia privada. `gh repo set-default <seu-usuario>/<seu-fork>`
+e valide o ia-6.1 de novo (a maior nota conta).
 
 **`pesquisa_resolvida` / `grilling_resolvido` zerados com o ticket fechado.** O
 ticket tem que ter um **comentário** com a resolução (≥ 300 caracteres). Fechar
