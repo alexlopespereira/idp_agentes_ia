@@ -12,6 +12,9 @@ fechamento da dupla leitura estão em
 [`scripts/onda5v_dupla_leitura.py`](scripts/onda5v_dupla_leitura.py).
 O código não contém conversas reais, IDs de origem ou votos. Não inclui
 modelo de IA nem envia dados a serviços externos.
+Antes da primeira leitura, ambos os leitores devem consultar o
+[codebook v1](rotulacao-codebook-v1.md); a interface coleta as categorias,
+mas não substitui suas definições e exemplos de aplicação.
 
 Requisitos: Python 3.9+ em macOS ou Linux; para contextos longos, `less` no
 terminal. Esta versão usa `fcntl` e `termios`, portanto não roda no Python

@@ -9,6 +9,7 @@ Materiais do curso **Agentes de IA**, ministrado no [IDP](https://www.idp.edu.br
 
 [Rotulação cega no terminal](rotulacao-terminal.md) — script Python para
 dupla leitura humana com checkpoints privados e desempate documentado.
+As decisões são definidas no [codebook v1](rotulacao-codebook-v1.md).
 
 ## Comece por aqui
 
